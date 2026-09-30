@@ -1,0 +1,21 @@
+# Product Roadmap
+
+- v0.1 Foundation — COMPLETE
+- v0.2 Market Intelligence — COMPLETE
+- v0.3 Portfolio Risk — COMPLETE
+- v0.4 Stress Lab — COMPLETE
+- v0.5 Liquidity — COMPLETE
+- v0.6 Backtest Lab — COMPLETE
+- v0.7 Walk-Forward / OOS — COMPLETE
+- v0.8 Universe Builder + Efficient Frontier + PyPortfolioOpt bridge — COMPLETE
+- v0.9 Factor & Research Engine — COMPLETE
+  - Fama–French 5F + Momentum regression
+  - Factor exposure heatmap
+  - Factor-bounded optimizer constraints
+  - Robust Yahoo valuation connector
+  - EODHD deep fundamentals
+  - Catalyst monitor
+  - Thesis versioning / change log
+- v0.10 Black-Litterman + risk budgets + factor-aware portfolio construction — NEXT
+- v0.11 Research history / peer valuation / market-implied expectations — PLANNED
+- v1.0 Institutional public release — PLANNED

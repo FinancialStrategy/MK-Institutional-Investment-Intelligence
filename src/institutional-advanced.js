@@ -106,25 +106,63 @@ function portfolioVol(weights,cov){
   return Math.sqrt(Math.max(0,v));
 }
 
-function stressedCovariance(cov,target=0.85,volMultiplier=1.35,blend=0.75){
-  if(!Array.isArray(cov)||!cov.length)return null;
+function stressedCovariance(cov,metas,overlay){
+  if(!Array.isArray(cov)||!cov.length||!overlay)return null;
   const n=cov.length, vols=Array(n).fill(0).map((_,i)=>Math.sqrt(Math.max(0,Number(cov[i]?.[i]||0))));
+  const mult=metas.map(m=>{
+    const x=Number(overlay.volMultiplier?.(m));
+    return Number.isFinite(x)&&x>0?x:1;
+  });
+  const target=Number(overlay.correlationTarget);
+  const blend=clamp(Number(overlay.correlationBlend)||0,0,1);
   return Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>{
-    if(i===j)return vols[i]*volMultiplier*vols[i]*volMultiplier;
+    const vi=vols[i]*mult[i], vj=vols[j]*mult[j];
+    if(i===j)return vi*vi;
     const den=vols[i]*vols[j];
     const base=den?Number(cov[i]?.[j]||0)/den:0;
-    const corr=clamp((1-blend)*base+blend*target,-0.99,0.99);
-    return corr*(vols[i]*volMultiplier)*(vols[j]*volMultiplier);
+    const corr=Number.isFinite(target)?clamp((1-blend)*base+blend*target,-0.99,0.99):clamp(base,-0.99,0.99);
+    return corr*vi*vj;
   }));
+}
+
+function overlaySummary(sc){
+  const o=sc.riskOverlay;
+  if(!o)return 'No stochastic risk overlay';
+  return `ρ target ${Number(o.correlationTarget).toFixed(2)} • blend ${(100*Number(o.correlationBlend)).toFixed(0)}% • scenario-specific vol multipliers`;
 }
 
 export function scenarioDefinitions(){
   return [
-    {name:'Equity Shock',description:'Broad equity / factor / index assets -20%; mining equities -15%; direct commodities unchanged.',shock:m=>m.assetClass==='Mining ETF'?-0.15:isEquityLike(m)?-0.20:0},
-    {name:'Inflation Shock',description:'Gold +15%; energy +12%; industrial metals +8%; long-duration bonds -10%; other bond ETFs -4%.',shock:m=>isGold(m)?0.15:isEnergy(m)?0.12:isIndustrialMetal(m)?0.08:m.factors?.includes('Long Duration')?-0.10:m.assetClass==='Bond ETF'?-0.04:0},
-    {name:'Rates +100bp Proxy',description:'Long-duration bonds -14%; intermediate duration -7%; short duration -1.5%; equities -4%; direct commodities unchanged.',shock:m=>m.factors?.includes('Long Duration')?-0.14:m.factors?.includes('Duration')?-0.07:m.factors?.includes('Short Duration')?-0.015:isEquityLike(m)||m.assetClass==='Mining ETF'?-0.04:0},
-    {name:'Growth Recession',description:'Broad equities -12%; cyclical/mining assets -15%; high yield -10%; government bonds +6%; gold +8%.',shock:m=>isGold(m)?0.08:m.ticker==='HYG'?-0.10:m.group==='Government Bonds'?0.06:m.assetClass==='Mining ETF'||m.factors?.includes('Cyclical')?-0.15:isEquityLike(m)?-0.12:0},
-    {name:'Correlation Spike',description:'Deterministic return shock is 0%; risk overlay blends off-diagonal correlations toward 0.85 and multiplies asset volatilities by 1.35.',shock:()=>0,correlationTarget:0.85,correlationBlend:0.75,volMultiplier:1.35}
+    {
+      name:'Equity Shock',
+      description:'Broad equity / factor / index assets -20%; mining equities -15%; direct commodities unchanged.',
+      shock:m=>m.assetClass==='Mining ETF'?-0.15:isEquityLike(m)?-0.20:0,
+      riskOverlay:{correlationTarget:0.65,correlationBlend:0.55,volMultiplier:m=>m.assetClass==='Mining ETF'?1.90:isEquityLike(m)?1.75:m.assetClass==='Commodity'?1.25:m.assetClass==='Bond ETF'?1.20:1.30}
+    },
+    {
+      name:'Inflation Shock',
+      description:'Gold +15%; energy +12%; industrial metals +8%; long-duration bonds -10%; other bond ETFs -4%.',
+      shock:m=>isGold(m)?0.15:isEnergy(m)?0.12:isIndustrialMetal(m)?0.08:m.factors?.includes('Long Duration')?-0.10:m.assetClass==='Bond ETF'?-0.04:0,
+      riskOverlay:{correlationTarget:0.45,correlationBlend:0.35,volMultiplier:m=>isGold(m)?1.30:isEnergy(m)?1.50:isIndustrialMetal(m)?1.45:m.assetClass==='Bond ETF'?1.35:isEquityLike(m)?1.30:1.20}
+    },
+    {
+      name:'Rates +100bp Proxy',
+      description:'Long-duration bonds -14%; intermediate duration -7%; short duration -1.5%; equities -4%; direct commodities unchanged.',
+      shock:m=>m.factors?.includes('Long Duration')?-0.14:m.factors?.includes('Duration')?-0.07:m.factors?.includes('Short Duration')?-0.015:isEquityLike(m)||m.assetClass==='Mining ETF'?-0.04:0,
+      riskOverlay:{correlationTarget:0.50,correlationBlend:0.40,volMultiplier:m=>m.factors?.includes('Long Duration')?1.80:m.factors?.includes('Duration')?1.55:m.factors?.includes('Short Duration')?1.20:isEquityLike(m)||m.assetClass==='Mining ETF'?1.30:m.assetClass==='Commodity'?1.15:1.20}
+    },
+    {
+      name:'Growth Recession',
+      description:'Broad equities -12%; cyclical/mining assets -15%; high yield -10%; government bonds +6%; gold +8%.',
+      shock:m=>isGold(m)?0.08:m.ticker==='HYG'?-0.10:m.group==='Government Bonds'?0.06:m.assetClass==='Mining ETF'||m.factors?.includes('Cyclical')?-0.15:isEquityLike(m)?-0.12:0,
+      riskOverlay:{correlationTarget:0.75,correlationBlend:0.65,volMultiplier:m=>m.assetClass==='Mining ETF'||m.factors?.includes('Cyclical')?1.85:m.ticker==='HYG'?1.70:isEquityLike(m)?1.65:m.group==='Government Bonds'?1.20:isGold(m)?1.35:1.30}
+    },
+    {
+      name:'Correlation Spike',
+      description:'Deterministic return shock is 0%; risk overlay blends off-diagonal correlations toward 0.85 and multiplies all asset volatilities by 1.35.',
+      shock:()=>0,
+      riskOverlay:{correlationTarget:0.85,correlationBlend:0.75,volMultiplier:()=>1.35}
+    }
   ];
 }
 
@@ -132,18 +170,18 @@ export function strategyScenarioMatrix(tickers,strategies,cov=null){
   const metas=tickers.map(resolvedScenarioMeta), defs=scenarioDefinitions();
   const unmapped=metas.filter(m=>!m.mapped).map(m=>m.ticker);
   return defs.map(sc=>{
-    const stressedCov=sc.correlationTarget!=null?stressedCovariance(cov,sc.correlationTarget,sc.volMultiplier??1,sc.correlationBlend??0.75):null;
+    const stressedCov=stressedCovariance(cov,metas,sc.riskOverlay);
     const values=strategies.map(s=>{
       const weights=strategyWeightVector(tickers,s);
       const contributions=tickers.map((ticker,i)=>{
         const shock=Number(sc.shock(metas[i])||0), weight=Number(weights[i]||0);
-        return {ticker,weight,shock,contribution:weight*shock,assetClass:metas[i].assetClass,group:metas[i].group,mapped:metas[i].mapped};
+        return {ticker,weight,shock,contribution:weight*shock,assetClass:metas[i].assetClass,group:metas[i].group,mapped:metas[i].mapped,volMultiplier:Number(sc.riskOverlay?.volMultiplier?.(metas[i])||1)};
       });
       const stressReturn=contributions.reduce((sum,x)=>sum+x.contribution,0);
       const baseVol=portfolioVol(weights,cov), stressedVol=stressedCov?portfolioVol(weights,stressedCov):NaN;
       return {key:s.key,label:s.label,weights,return:stressReturn,baseVol,stressedVol,deltaVol:Number.isFinite(stressedVol)&&Number.isFinite(baseVol)?stressedVol-baseVol:NaN,contributions};
     });
-    return {scenario:sc.name,description:sc.description,correlationTarget:sc.correlationTarget??null,correlationBlend:sc.correlationBlend??null,volMultiplier:sc.volMultiplier??1,values,unmapped};
+    return {scenario:sc.name,description:sc.description,riskOverlay:sc.riskOverlay||null,riskOverlaySummary:overlaySummary(sc),values,unmapped};
   });
 }
 

@@ -78,19 +78,73 @@ export function riskDecompositionLocal(tickers,weights,cov){
   return {vol,mrc,rc,rcPct,hhi,effectiveN:hhi?1/hhi:NaN,diversificationRatio:vol?w.reduce((s,x,i)=>s+Math.abs(x)*assetVol[i],0)/vol:NaN};
 }
 
+function resolvedScenarioMeta(ticker){
+  const base=metaMap.get(ticker);
+  if(base)return {...base,mapped:true};
+  const t=String(ticker||'').trim();
+  if(/=F$/.test(t))return {ticker:t,assetClass:'Commodity',group:'Unclassified Commodity',factors:[],mapped:false};
+  return {ticker:t,assetClass:'Unknown',group:'Unknown',factors:[],mapped:false};
+}
+
+function isEquityLike(m){return ['Equity','Equity ETF','Factor ETF','Index'].includes(m.assetClass);}
+function isGold(m){return m.ticker==='GC=F'||m.ticker==='GLD'||m.factors?.includes('Gold');}
+function isIndustrialMetal(m){return m.group==='Industrial Metals'||m.factors?.includes('Copper')||m.factors?.includes('Aluminium');}
+function isEnergy(m){return m.group==='Energy'||m.factors?.includes('Energy');}
+
+function strategyWeightVector(tickers,strategy){
+  const src=strategy?.weights;
+  const raw=Array.isArray(src)?tickers.map((_,i)=>Number(src[i]||0)):tickers.map(t=>Number(src?.[t]||0));
+  if(!raw.every(Number.isFinite))return Array(tickers.length).fill(0);
+  const sum=raw.reduce((a,b)=>a+b,0);
+  return Math.abs(sum)>1e-10?raw.map(x=>x/sum):raw;
+}
+
+function portfolioVol(weights,cov){
+  if(!Array.isArray(cov)||cov.length!==weights.length)return NaN;
+  let v=0;
+  for(let i=0;i<weights.length;i++)for(let j=0;j<weights.length;j++)v+=weights[i]*weights[j]*Number(cov[i]?.[j]||0);
+  return Math.sqrt(Math.max(0,v));
+}
+
+function stressedCovariance(cov,target=0.85,volMultiplier=1.35,blend=0.75){
+  if(!Array.isArray(cov)||!cov.length)return null;
+  const n=cov.length, vols=Array(n).fill(0).map((_,i)=>Math.sqrt(Math.max(0,Number(cov[i]?.[i]||0))));
+  return Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>{
+    if(i===j)return vols[i]*volMultiplier*vols[i]*volMultiplier;
+    const den=vols[i]*vols[j];
+    const base=den?Number(cov[i]?.[j]||0)/den:0;
+    const corr=clamp((1-blend)*base+blend*target,-0.99,0.99);
+    return corr*(vols[i]*volMultiplier)*(vols[j]*volMultiplier);
+  }));
+}
+
 export function scenarioDefinitions(){
   return [
-    {name:'Equity Shock',description:'Equity/factor/index assets -20%; mining -15%; commodities unchanged.',shock:m=>['Equity','Equity ETF','Factor ETF','Index'].includes(m.assetClass)?-0.20:m.assetClass==='Mining ETF'?-0.15:0},
-    {name:'Inflation Shock',description:'Gold +15%, energy +12%, industrial metals +8%, long bonds -10%.',shock:m=>m.group==='Precious Metals'?0.15:m.group==='Energy'?0.12:m.group==='Industrial Metals'?0.08:m.factors?.includes('Long Duration')?-0.10:m.assetClass==='Bond ETF'?-0.04:0},
-    {name:'Rates +100bp Proxy',description:'Bond ETF proxy shocks by duration bucket; equities -4%; commodities 0%.',shock:m=>m.factors?.includes('Long Duration')?-0.14:m.factors?.includes('Duration')?-0.07:m.factors?.includes('Short Duration')?-0.015:['Equity','Equity ETF','Factor ETF','Index'].includes(m.assetClass)?-0.04:0},
-    {name:'Growth Recession',description:'Cyclical assets -15%, high yield -10%, government bonds +6%, gold +8%.',shock:m=>m.factors?.includes('Cyclical')?-0.15:m.ticker==='HYG'?-0.10:m.group==='Government Bonds'?0.06:m.factors?.includes('Gold')?0.08:0},
-    {name:'Correlation Spike',description:'Return shock is unchanged; risk overlay assumes correlations converge upward.',shock:m=>0,correlationTarget:0.85,volMultiplier:1.35}
+    {name:'Equity Shock',description:'Broad equity / factor / index assets -20%; mining equities -15%; direct commodities unchanged.',shock:m=>m.assetClass==='Mining ETF'?-0.15:isEquityLike(m)?-0.20:0},
+    {name:'Inflation Shock',description:'Gold +15%; energy +12%; industrial metals +8%; long-duration bonds -10%; other bond ETFs -4%.',shock:m=>isGold(m)?0.15:isEnergy(m)?0.12:isIndustrialMetal(m)?0.08:m.factors?.includes('Long Duration')?-0.10:m.assetClass==='Bond ETF'?-0.04:0},
+    {name:'Rates +100bp Proxy',description:'Long-duration bonds -14%; intermediate duration -7%; short duration -1.5%; equities -4%; direct commodities unchanged.',shock:m=>m.factors?.includes('Long Duration')?-0.14:m.factors?.includes('Duration')?-0.07:m.factors?.includes('Short Duration')?-0.015:isEquityLike(m)||m.assetClass==='Mining ETF'?-0.04:0},
+    {name:'Growth Recession',description:'Broad equities -12%; cyclical/mining assets -15%; high yield -10%; government bonds +6%; gold +8%.',shock:m=>isGold(m)?0.08:m.ticker==='HYG'?-0.10:m.group==='Government Bonds'?0.06:m.assetClass==='Mining ETF'||m.factors?.includes('Cyclical')?-0.15:isEquityLike(m)?-0.12:0},
+    {name:'Correlation Spike',description:'Deterministic return shock is 0%; risk overlay blends off-diagonal correlations toward 0.85 and multiplies asset volatilities by 1.35.',shock:()=>0,correlationTarget:0.85,correlationBlend:0.75,volMultiplier:1.35}
   ];
 }
 
-export function strategyScenarioMatrix(tickers,strategies){
-  const metas=tickers.map(t=>metaMap.get(t)||{ticker:t,assetClass:'Unknown',group:'Unknown',factors:[]}); const defs=scenarioDefinitions();
-  return defs.map(sc=>({scenario:sc.name,description:sc.description,correlationTarget:sc.correlationTarget??null,volMultiplier:sc.volMultiplier??1,values:strategies.map(s=>({label:s.label,return:tickers.reduce((sum,t,i)=>sum+Number(s.weights[i]||0)*Number(sc.shock(metas[i])||0),0)}))}));
+export function strategyScenarioMatrix(tickers,strategies,cov=null){
+  const metas=tickers.map(resolvedScenarioMeta), defs=scenarioDefinitions();
+  const unmapped=metas.filter(m=>!m.mapped).map(m=>m.ticker);
+  return defs.map(sc=>{
+    const stressedCov=sc.correlationTarget!=null?stressedCovariance(cov,sc.correlationTarget,sc.volMultiplier??1,sc.correlationBlend??0.75):null;
+    const values=strategies.map(s=>{
+      const weights=strategyWeightVector(tickers,s);
+      const contributions=tickers.map((ticker,i)=>{
+        const shock=Number(sc.shock(metas[i])||0), weight=Number(weights[i]||0);
+        return {ticker,weight,shock,contribution:weight*shock,assetClass:metas[i].assetClass,group:metas[i].group,mapped:metas[i].mapped};
+      });
+      const stressReturn=contributions.reduce((sum,x)=>sum+x.contribution,0);
+      const baseVol=portfolioVol(weights,cov), stressedVol=stressedCov?portfolioVol(weights,stressedCov):NaN;
+      return {key:s.key,label:s.label,weights,return:stressReturn,baseVol,stressedVol,deltaVol:Number.isFinite(stressedVol)&&Number.isFinite(baseVol)?stressedVol-baseVol:NaN,contributions};
+    });
+    return {scenario:sc.name,description:sc.description,correlationTarget:sc.correlationTarget??null,correlationBlend:sc.correlationBlend??null,volMultiplier:sc.volMultiplier??1,values,unmapped};
+  });
 }
 
 export function regimeDiagnostic(metrics){

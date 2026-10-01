@@ -220,3 +220,14 @@
 .migration-action-sell{font-weight:700}
 @media(max-width:1000px){.decision-desk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.robust-frontier-chart{height:340px;min-height:340px}}
 @media(max-width:620px){.decision-desk-grid{grid-template-columns:1fr}.advanced-opt label,.portfolio-controls label{min-width:100%;flex-basis:100%}}
+
+/* v0.13.1 Institutional Stress Engine Fix */
+.stress-strategy-panel .table-scroll{margin-top:10px}
+.stress-cell-main{font-weight:700;font-variant-numeric:tabular-nums}
+.stress-cell-sub{margin-top:3px;color:var(--muted);font-size:9px;white-space:nowrap}
+.stress-attribution-panel .portfolio-controls{margin-top:10px}
+.stress-attribution-panel tfoot td{border-top:1px solid var(--border);padding-top:10px}
+.stress-mapped{color:var(--good);font-weight:700}
+.stress-unmapped{color:#f2b36f;font-weight:700}
+.stress-warning{margin-top:10px;border:1px solid rgba(242,179,111,.38);background:rgba(242,179,111,.06);border-radius:8px;padding:9px 10px;color:#f2b36f;font-size:10px}
+.engine-badge.warning{color:#f2b36f;border-color:rgba(242,179,111,.38);background:rgba(242,179,111,.06)}

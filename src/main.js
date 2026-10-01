@@ -39,6 +39,7 @@ let state = {
   portfolioOOS: null, portfolioOOSInputs: { train:756, test:63, step:63, folds:10, costBps:10 },
   migrationTarget:'max_sharpe', migration: null, riskStrategy:'max_sharpe',
   scenarioMatrix: null,
+  scenarioSelection: { scenario:'Equity Shock', strategy:'max_sharpe' },
   decisionNotes: '',
   factorData: null, factorResults: [], factorPortfolio: null,
   research: null,
@@ -58,7 +59,7 @@ function presentationDock() {
 }
 
 function classicBrandMarkup() {
-  return `<div class="brand brand-classic"><h1>MK INSTITUTIONAL INVESTMENT INTELLIGENCE</h1><p>Institutional Research • Portfolio Risk • Market Analytics • Netlify Edition v0.13.0</p></div>`;
+  return `<div class="brand brand-classic"><h1>MK INSTITUTIONAL INVESTMENT INTELLIGENCE</h1><p>Institutional Research • Portfolio Risk • Market Analytics • Netlify Edition v0.13.1</p></div>`;
 }
 
 function labgenBrandMarkup() {
@@ -455,7 +456,7 @@ function runWalkForward() {
 }
 
 function methodology() {
-  return `<div class="panel"><h3>METHODOLOGY — v0.13.0</h3>
+  return `<div class="panel"><h3>METHODOLOGY — v0.13.1</h3>
   <table><thead><tr><th>Module</th><th>Formula / Method</th><th>Validation / Governance</th></tr></thead><tbody>
   <tr><td>Returns</td><td>rₜ = ln(Pₜ/Pₜ₋₁) for market diagnostics; PortfolioOPTIM uses aligned simple returns from prices</td><td>Finite positive observed prices only</td></tr>
   <tr><td>Realized Vol</td><td>σ = sd(r) × √252</td><td>Rolling 21D / 63D</td></tr>
@@ -1042,8 +1043,19 @@ function riskDecompositionDesk(){
 function strategyScenarioDesk(){
   if(!state.optimizerExact)return '';
   const rows=advancedStrategyRows().filter(x=>x.kind==='optimizer'||x.key==='equal_weight');
-  const matrix=strategyScenarioMatrix(state.selectedUniverse,rows);state.scenarioMatrix=matrix;
-  return `<div class="panel" style="margin-top:12px"><h3>STRATEGY SCENARIO MATRIX</h3><p class="sub">Scenario returns are transparent deterministic asset-class proxy shocks, not forecasts. Correlation-spike risk overlays are shown separately from deterministic P&L.</p><div class="table-scroll"><table><thead><tr><th>Scenario</th>${rows.map(r=>`<th>${r.label}</th>`).join('')}<th>Risk Overlay</th></tr></thead><tbody>${matrix.map(sc=>`<tr><td><b>${sc.scenario}</b><div class="sub">${sc.description}</div></td>${sc.values.map(v=>`<td>${fmtPct(v.return)}</td>`).join('')}<td>${sc.correlationTarget?`ρ→${fmtNum(sc.correlationTarget,2)} • Vol×${fmtNum(sc.volMultiplier,2)}`:'—'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const mc=commonMuCov();
+  const matrix=strategyScenarioMatrix(state.selectedUniverse,rows,mc?.cov);state.scenarioMatrix=matrix;
+  const scenarios=matrix.map(x=>x.scenario);
+  if(!scenarios.includes(state.scenarioSelection.scenario))state.scenarioSelection.scenario=scenarios[0]||'';
+  if(!rows.some(x=>x.key===state.scenarioSelection.strategy))state.scenarioSelection.strategy=rows[0]?.key||'';
+  const selected=matrix.find(x=>x.scenario===state.scenarioSelection.scenario)||matrix[0];
+  const selectedValue=selected?.values?.find(x=>x.key===state.scenarioSelection.strategy)||selected?.values?.[0];
+  const unmapped=[...new Set(matrix.flatMap(x=>x.unmapped||[]))];
+  const mappingBadge=unmapped.length?`<span class="engine-badge warning">UNMAPPED ${unmapped.length}</span>`:`<span class="engine-badge live">MAPPING PASS</span>`;
+  const attributionRows=(selectedValue?.contributions||[]).map(x=>`<tr><td>${x.ticker}</td><td>${x.assetClass}</td><td>${x.group}</td><td>${fmtPct(x.weight)}</td><td>${fmtPct(x.shock)}</td><td>${fmtPct(x.contribution)}</td><td class="${x.mapped?'stress-mapped':'stress-unmapped'}">${x.mapped?'MAPPED':'UNMAPPED'}</td></tr>`).join('');
+  const riskCells=(v,sc)=>sc.correlationTarget!=null?`<div class="stress-cell-main">${fmtPct(v.return)}</div><div class="stress-cell-sub">Vol ${fmtPct(v.baseVol)} → ${fmtPct(v.stressedVol)}</div>`:`<div class="stress-cell-main">${fmtPct(v.return)}</div>`;
+  return `<div class="panel stress-strategy-panel" style="margin-top:12px"><div class="frontier-head"><div><h3>STRATEGY SCENARIO MATRIX</h3><p class="sub">Each deterministic scenario is applied asset-by-asset, then aggregated as Σ(weight × asset shock). Correlation Spike keeps deterministic return at 0% and recomputes strategy volatility from a stressed covariance matrix.</p></div>${mappingBadge}</div><div class="table-scroll"><table><thead><tr><th>Scenario</th>${rows.map(r=>`<th>${r.label}</th>`).join('')}<th>Risk Overlay</th></tr></thead><tbody>${matrix.map(sc=>`<tr><td><b>${sc.scenario}</b><div class="sub">${sc.description}</div></td>${sc.values.map(v=>`<td>${riskCells(v,sc)}</td>`).join('')}<td>${sc.correlationTarget!=null?`ρ target ${fmtNum(sc.correlationTarget,2)} • blend ${fmtPct(sc.correlationBlend)} • asset vol ×${fmtNum(sc.volMultiplier,2)}`:'—'}</td></tr>`).join('')}</tbody></table></div>${unmapped.length?`<p class="stress-warning"><strong>UNMAPPED ASSETS:</strong> ${unmapped.join(', ')}. Their deterministic shock defaults to the explicit fallback classification and should be reviewed before relying on the scenario.</p>`:''}</div>
+  <div class="panel stress-attribution-panel" style="margin-top:12px"><div class="frontier-head"><div><h3>SCENARIO ATTRIBUTION</h3><p class="sub">Audit trail for the selected strategy/scenario. Portfolio shock must equal the sum of asset-level contributions.</p></div><span class="engine-badge live">WEIGHTED P&amp;L</span></div><div class="portfolio-controls"><label>Scenario<select id="stressScenarioSelect">${matrix.map(sc=>`<option value="${sc.scenario}" ${state.scenarioSelection.scenario===sc.scenario?'selected':''}>${sc.scenario}</option>`).join('')}</select></label><label>Strategy<select id="stressStrategySelect">${rows.map(r=>`<option value="${r.key}" ${state.scenarioSelection.strategy===r.key?'selected':''}>${r.label}</option>`).join('')}</select></label></div><div class="grid kpis four" style="margin-top:10px">${[['PORTFOLIO SHOCK',fmtPct(selectedValue?.return)],['BASE VOL',fmtPct(selectedValue?.baseVol)],['STRESSED VOL',fmtPct(selectedValue?.stressedVol)],['Δ VOL',fmtPct(selectedValue?.deltaVol)]].map(([a,b])=>`<div class="kpi"><div class="label">${a}</div><div class="num smallnum">${b}</div></div>`).join('')}</div><div class="table-scroll" style="margin-top:10px"><table><thead><tr><th>Asset</th><th>Asset Class</th><th>Group</th><th>Weight</th><th>Shock</th><th>Contribution</th><th>Mapping</th></tr></thead><tbody>${attributionRows}</tbody><tfoot><tr><td colspan="5"><strong>Portfolio Total</strong></td><td><strong>${fmtPct(selectedValue?.return)}</strong></td><td>${unmapped.length?'REVIEW':'PASS'}</td></tr></tfoot></table></div><p class="sub">For deterministic shocks, stressed return = Σ wᵢsᵢ. Correlation Spike is a risk-only overlay: return shock remains 0 while stressed volatility is recomputed from the stressed covariance matrix.</p></div>`;
 }
 
 function regimeAllocationPanel(){
@@ -1115,6 +1127,8 @@ function renderView() {
   if (state.active === 'STRESS') {
     document.querySelector('#runStress')?.addEventListener('click', runStress);
     document.querySelector('#runReplay')?.addEventListener('click', runReplay);
+    document.querySelector('#stressScenarioSelect')?.addEventListener('change',e=>{state.scenarioSelection.scenario=e.target.value;renderView();});
+    document.querySelector('#stressStrategySelect')?.addEventListener('change',e=>{state.scenarioSelection.strategy=e.target.value;renderView();});
   }
   if (state.active === 'BACKTEST') document.querySelector('#runBacktest')?.addEventListener('click', runBacktest);
   if (state.active === 'WALK-FORWARD') { document.querySelector('#runWalk')?.addEventListener('click', runWalkForward); document.querySelector('#runPortfolioOOS')?.addEventListener('click',runPortfolioOOS); }

@@ -1,8 +1,10 @@
-# MK Institutional Investment Intelligence — v0.13.0
+# MK Institutional Investment Intelligence — v0.13.1
 
 Netlify institutional portfolio analytics frontend + secure Render PortfolioOPTIM backend.
 
-v0.13.0 preserves the validated v0.11.4.2 exact-frontier/common-basis baseline and adds a complete opt-in institutional portfolio-construction stack:
+v0.13.1 preserves the validated v0.13.0 institutional stack and hardens the Stress module with auditable asset-level shocks, weighted portfolio P&L attribution, stressed-covariance volatility and unmapped-asset diagnostics. The rest of the PortfolioOPTIM stack is unchanged.
+
+The v0.13.0 institutional stack includes:
 
 - Portfolio-level Walk-Forward / Out-of-Sample Strategy Lab
 - Robust Optimization & Parameter Stability
@@ -37,4 +39,4 @@ npm install
 npm run build
 ```
 
-See `docs/CHANGELOG_v0.13.0.md` and `quant_service/DEPLOY.md`.
+See `docs/CHANGELOG_v0.13.1.md`. PortfolioOPTIM backend remains v0.13.0; no Render backend update is required for this frontend-only stress fix.

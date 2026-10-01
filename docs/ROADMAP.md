@@ -1,4 +1,4 @@
-# Product Roadmap
+# Product Roadmap — v0.13.0
 
 - v0.1 Foundation — COMPLETE
 - v0.2 Market Intelligence — COMPLETE
@@ -6,16 +6,25 @@
 - v0.4 Stress Lab — COMPLETE
 - v0.5 Liquidity — COMPLETE
 - v0.6 Backtest Lab — COMPLETE
-- v0.7 Walk-Forward / OOS — COMPLETE
+- v0.7 Single-asset Walk-Forward / OOS — COMPLETE
 - v0.8 Universe Builder + Efficient Frontier + PortfolioOPTIM bridge — COMPLETE
 - v0.9 Factor & Research Engine — COMPLETE
-  - Fama–French 5F + Momentum regression
-  - Factor exposure heatmap
-  - Factor-bounded optimizer constraints
-  - Robust Yahoo valuation connector
-  - EODHD deep fundamentals
-  - Catalyst monitor
-  - Thesis versioning / change log
-- v0.10 Black-Litterman + risk budgets + factor-aware portfolio construction — NEXT
-- v0.11 Research history / peer valuation / market-implied expectations — PLANNED
-- v1.0 Institutional public release — PLANNED
+- v0.10 Black–Litterman + risk budgets + factor-aware construction — COMPLETE
+- v0.11 Exact frontier, CML/tangency, Strategy Comparison and common-basis audit — COMPLETE
+- v0.13 Full Institutional Portfolio Stack — COMPLETE
+  - Portfolio-level walk-forward/OOS
+  - Robustness and resampled frontier
+  - Institutional constraint engine
+  - Current-to-target migration
+  - Risk decomposition desk
+  - Strategy scenario matrix
+  - Regime-aware allocation presets
+  - Black–Litterman View Studio
+  - Efficient Frontier diagnostics
+  - Executive Portfolio Decision Desk
+
+## Next optional hardening
+- Persistent server-side cache for repeated exact solves.
+- Async job/polling architecture for very long portfolio universes.
+- Regional factor libraries and local market risk models.
+- Import/export of current holdings and investment guidelines.

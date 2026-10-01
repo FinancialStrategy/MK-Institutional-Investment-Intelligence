@@ -200,3 +200,23 @@
 .strategy-unavailable td{color:var(--muted);font-style:italic}
 .consistency-ok{color:var(--good);font-weight:700;letter-spacing:.04em}
 .consistency-warning{color:#f2b36f;font-weight:700;letter-spacing:.04em}
+
+/* v0.13.0 Full Institutional Portfolio Stack */
+.advanced-opt,.portfolio-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.advanced-opt label,.portfolio-controls label{min-width:150px;flex:1 1 150px}
+.advanced-opt input,.advanced-opt select,.portfolio-controls input,.portfolio-controls select{width:100%}
+.robust-frontier-chart{height:390px;min-height:390px}
+.panel .table-scroll{border-radius:8px}
+.panel h3+.sub{max-width:1050px}
+.decision-desk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.decision-desk-card{border:1px solid var(--border);background:rgba(255,255,255,.018);border-radius:9px;padding:11px}
+.decision-desk-card span{display:block;color:var(--muted);font-size:8px;letter-spacing:.09em}
+.decision-desk-card b{display:block;margin-top:5px;font-size:14px;font-variant-numeric:tabular-nums}
+.regime-preset{border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px;background:rgba(255,255,255,.014)}
+.regime-preset strong{letter-spacing:.06em}
+.frontier-diagnostics{margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+.oos-governance{border:1px solid var(--border);border-radius:9px;padding:10px;background:rgba(255,255,255,.014)}
+.migration-action-buy{font-weight:700}
+.migration-action-sell{font-weight:700}
+@media(max-width:1000px){.decision-desk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.robust-frontier-chart{height:340px;min-height:340px}}
+@media(max-width:620px){.decision-desk-grid{grid-template-columns:1fr}.advanced-opt label,.portfolio-controls label{min-width:100%;flex-basis:100%}}

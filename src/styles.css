@@ -163,3 +163,22 @@
 .strategy-heatmap{height:330px;min-height:330px}
 .comparison-note{margin-top:10px}
 @media(max-width:1100px){.strategy-heat-grid{grid-template-columns:1fr}.strategy-heatmap{height:360px}}
+
+
+/* v0.11.3 Optimization Analytics polish */
+.optimization-grid{align-items:start}
+.solution-panel{max-height:none!important;overflow:visible!important}
+.solution-note{margin:0 0 8px}
+.solution-block{padding:8px 0 14px;border-bottom:1px solid var(--border)}
+.solution-block:last-child{border-bottom:0}
+.solution-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.solution-title h4{border:0!important;margin:8px 0!important;padding:0!important}
+.solution-tag{font-size:8px;letter-spacing:.09em;color:#72c9e8;border:1px solid rgba(114,201,232,.32);border-radius:999px;padding:4px 7px;white-space:nowrap}
+.solution-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:7px 0 4px}
+.solution-metrics>div,.frontier-analytics>div{border:1px solid var(--border);background:rgba(255,255,255,.018);border-radius:7px;padding:7px 8px;min-width:0}
+.solution-metrics span,.frontier-analytics span{display:block;color:var(--muted);font-size:8px;letter-spacing:.07em;white-space:nowrap}
+.solution-metrics b,.frontier-analytics b{display:block;margin-top:3px;font-size:12px;font-variant-numeric:tabular-nums}
+.frontier-analytics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:10px 0 2px}
+.frontier-analytics b{font-size:13px}
+@media(max-width:1200px){.frontier-analytics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.solution-metrics,.frontier-analytics{grid-template-columns:1fr 1fr}}

@@ -151,3 +151,15 @@
 /* v0.10.9 strategy controls */
 .strategy-help{margin:10px 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;line-height:1.5;color:var(--muted);background:rgba(255,255,255,.018)}
 .strategy-param{min-width:150px}
+
+/* v0.11.0 Strategy Comparison Lab */
+.strategy-comparison-panel{padding:16px}
+.strategy-compare-wrap{overflow:auto;margin-top:10px;border:1px solid var(--border);border-radius:9px}
+.strategy-compare{width:100%;min-width:860px;border-collapse:collapse;font-size:11px}
+.strategy-compare th,.strategy-compare td{padding:9px 10px;white-space:nowrap;border-bottom:1px solid var(--border);text-align:right}
+.strategy-compare th:first-child,.strategy-compare td:first-child{text-align:left;position:sticky;left:0;background:var(--panel);z-index:1}
+.strategy-compare tbody tr:hover{background:rgba(255,255,255,.025)}
+.strategy-heat-grid{grid-template-columns:1fr 1fr;gap:14px}
+.strategy-heatmap{height:330px;min-height:330px}
+.comparison-note{margin-top:10px}
+@media(max-width:1100px){.strategy-heat-grid{grid-template-columns:1fr}.strategy-heatmap{height:360px}}

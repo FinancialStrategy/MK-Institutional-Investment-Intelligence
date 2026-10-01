@@ -533,8 +533,64 @@ function optimizationView(){
   </div>
     ${o?`<div class="grid kpis four" style="margin-top:12px">${[['OBS',o.observations],['MIN VOL',fmtPct(o.minVol.vol)],['MIN VOL RETURN',fmtPct(o.minVol.ret)],['MAX SHARPE',fmtNum(o.maxSharpe.sharpe,2)],['MS RETURN',fmtPct(o.maxSharpe.ret)],['MS VOL',fmtPct(o.maxSharpe.vol)]].map(([a,b])=>`<div class="kpi"><div class="label">${a}</div><div class="num smallnum">${b}</div></div>`).join('')}</div>
     <div class="grid optimization-grid"><div class="panel frontier-panel"><div class="frontier-head"><div><h3>${ex?.frontier?.length?'PYPORTFOLIOOPT EFFICIENT FRONTIER':'EFFICIENT FRONTIER — PREVIEW'}</h3><p class="sub">${ex?.frontier?.length?'Exact constrained frontier is primary; preview is retained as a diagnostic reference.':'Run PyPortfolioOpt to overlay the exact constrained frontier.'}</p></div><span class="engine-badge ${ex?.frontier?.length?'live':'preview'}">${ex?.frontier?.length?'EXACT LIVE':'PREVIEW'}</span></div><div id="frontierChart" class="chart frontier-chart"></div></div><div class="panel solution-panel"><h3>${ex?'PORTFOLIO SOLUTIONS':'PREVIEW PORTFOLIOS'}</h3>${ex?.benchmarks?.min_volatility?weightsTable('Minimum Volatility',state.selectedUniverse.map(t=>ex.benchmarks.min_volatility.weights?.[t]||0),0.001):weightsTable('Minimum Volatility',o.minVol.w,0.001)}${ex?.benchmarks?.max_sharpe?weightsTable('Maximum Sharpe / Tangency',state.selectedUniverse.map(t=>ex.benchmarks.max_sharpe.weights?.[t]||0),0.001):weightsTable('Maximum Sharpe',o.maxSharpe.w,0.001)}${ex?.benchmarks?.risk_parity?weightsTable('Risk Parity',state.selectedUniverse.map(t=>ex.benchmarks.risk_parity.weights?.[t]||0),0.001):''}${ex?.benchmarks?.black_litterman?weightsTable('Black–Litterman',state.selectedUniverse.map(t=>ex.benchmarks.black_litterman.weights?.[t]||0),0.001):''}${ex?weightsTable(`Selected — ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,state.selectedUniverse.map(t=>ex.weights?.[t]||0),0.001):''}</div></div>`:''}
+    ${ex?`<div class="panel strategy-comparison-panel" style="margin-top:12px"><div class="frontier-head"><div><h3>PORTFOLIO STRATEGY COMPARISON LAB</h3><p class="sub">Apples-to-apples evaluation: every portfolio is re-scored on the same selected universe, dates, historical expected-return vector, covariance matrix, risk-free rate and common constraints. Black–Litterman may use posterior views for optimization, but the comparison metrics below are recomputed on the common market-data model.</p></div><span class="engine-badge live">COMMON BASIS</span></div>${strategyComparisonTable(o,ex)}<div class="grid two strategy-heat-grid" style="margin-top:12px"><div><h4>CAPITAL WEIGHTS HEATMAP</h4><div id="strategyWeightHeatmap" class="chart strategy-heatmap"></div></div><div><h4>RISK CONTRIBUTION HEATMAP</h4><div id="strategyRiskHeatmap" class="chart strategy-heatmap"></div></div></div><p class="sub comparison-note">Return/volatility/Sharpe are common-basis diagnostics, not a claim of out-of-sample superiority. For a genuine performance comparison, use the Walk-Forward module with identical estimation windows, rebalance cadence and transaction-cost assumptions.</p></div>`:''}
     ${ex?`<div class="grid two" style="margin-top:12px"><div class="panel"><h3>PYPORTFOLIOOPT — ${ex.method}</h3><p class="sub">Engine: ${ex.engine} • ${ex.observations} complete observations • ${ex.data_start} → ${ex.data_end}</p>${ex.factor_exposure?`<h4>OPTIMIZED FACTOR EXPOSURE</h4><table><tbody>${Object.entries(ex.factor_exposure).map(([k,v])=>`<tr><td>${k}</td><td>${fmtNum(v,3)}</td></tr>`).join('')}</tbody></table>`:''}<pre class="jsonbox">${JSON.stringify(ex.performance,null,2)}</pre></div><div class="panel"><h3>CONSTRAINT DIAGNOSTICS</h3>${constraintDiagnosticsTable(ex.constraint_diagnostics)}<p class="sub">Binding constraints explain why optimized weights may sit exactly on configured caps/floors.</p></div></div>`:''}`;
 }
+
+function strategyComparisonRows(o,ex){
+  if(!o)return [];
+  const bench=ex?.benchmarks||{};
+  const rows=[];
+  const curW=selectedCurrentWeights();
+  const add=(key,label,weights,kind='optimizer')=>{
+    if(!weights||weights.length!==state.selectedUniverse.length)return;
+    const w=weights.map(Number);
+    if(!w.every(Number.isFinite))return;
+    const sum=w.reduce((a,b)=>a+b,0); if(!(sum>0))return;
+    const wn=w.map(x=>x/sum);
+    const p=portfolioPointFromWeights(wn,o); if(!p)return;
+    const hhi=wn.reduce((a,x)=>a+x*x,0);
+    const maxWeight=Math.max(...wn.map(Math.abs));
+    const turnover=curW?0.5*wn.reduce((a,x,i)=>a+Math.abs(x-curW[i]),0):NaN;
+    rows.push({key,label,kind,weights:wn,...p,hhi,effectiveN:hhi>0?1/hhi:NaN,maxWeight,turnover});
+  };
+  const bw=x=>state.selectedUniverse.map(t=>Number(x?.weights?.[t]||0));
+  add('max_sharpe','Maximum Sharpe / Tangency',bw(bench.max_sharpe));
+  add('min_volatility','Minimum Volatility',bw(bench.min_volatility));
+  add('risk_parity','Risk Parity',bw(bench.risk_parity));
+  if(bench.black_litterman)add('black_litterman','Black–Litterman',bw(bench.black_litterman));
+  const eq=Array(state.selectedUniverse.length).fill(1/Math.max(1,state.selectedUniverse.length));
+  add('equal_weight','Equal Weight',eq,'benchmark');
+  if(curW)add('current','Current Portfolio',curW,'benchmark');
+  return rows;
+}
+function riskContributionShares(weights,o){
+  if(!weights||!o?.sigma)return [];
+  const n=weights.length, sw=Array(n).fill(0);
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++)sw[i]+=o.sigma[i][j]*weights[j];
+  const comp=weights.map((w,i)=>w*sw[i]);
+  const total=comp.reduce((a,b)=>a+b,0);
+  return Math.abs(total)>1e-14?comp.map(x=>x/total):comp.map(()=>NaN);
+}
+function strategyComparisonTable(o,ex){
+  const rows=strategyComparisonRows(o,ex);
+  if(!rows.length)return '<p class="sub">Run PyPortfolioOpt Exact to populate the strategy comparison.</p>';
+  return `<div class="strategy-compare-wrap"><table class="strategy-compare"><thead><tr><th>Strategy</th><th>Return</th><th>Volatility</th><th>Sharpe</th><th>HHI</th><th>Effective N</th><th>Max Weight</th><th>Turnover vs Current</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${r.label}</b></td><td>${fmtPct(r.ret)}</td><td>${fmtPct(r.vol)}</td><td>${fmtNum(r.sharpe,2)}</td><td>${fmtNum(r.hhi,3)}</td><td>${fmtNum(r.effectiveN,2)}</td><td>${fmtPct(r.maxWeight)}</td><td>${Number.isFinite(r.turnover)?fmtPct(r.turnover):'N/A'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function strategyHeatmap(id,o,ex,mode='weights'){
+  const el=document.querySelector(id); if(!el)return;
+  const rows=strategyComparisonRows(o,ex); if(!rows.length)return;
+  const {muted}=baseAxis(); const assets=state.selectedUniverse;
+  const data=[];
+  rows.forEach((r,yi)=>{
+    const vals=mode==='risk'?riskContributionShares(r.weights,o):r.weights;
+    vals.forEach((v,xi)=>data.push([xi,yi,Number.isFinite(v)?v:null]));
+  });
+  const vals=data.map(x=>Math.abs(x[2])).filter(Number.isFinite); const mx=Math.max(.01,...vals);
+  const c=echarts.init(el);
+  c.setOption({animation:false,tooltip:{formatter:p=>`${rows[p.data[1]].label}<br>${assets[p.data[0]]}: ${(Number(p.data[2])*100).toFixed(2)}%`},grid:{left:160,right:24,top:18,bottom:58},xAxis:{type:'category',data:assets,axisLabel:{color:muted,rotate:30,fontSize:10}},yAxis:{type:'category',data:rows.map(r=>r.label),axisLabel:{color:muted,fontSize:10}},visualMap:{min:mode==='risk'?-mx:0,max:mx,calculable:false,orient:'horizontal',left:'center',bottom:0,textStyle:{color:muted,fontSize:9}},series:[{type:'heatmap',data,label:{show:true,fontSize:9,formatter:p=>Number.isFinite(p.data[2])?`${(p.data[2]*100).toFixed(1)}%`:''},emphasis:{itemStyle:{shadowBlur:6}}}]});
+}
+
 function weightsTable(title,w,minDisplay=0){if(!w)return '';const rows=state.selectedUniverse.map((t,i)=>({t,w:Number(w[i]||0)})).filter(x=>Math.abs(x.w)>=minDisplay);return `<h4>${title}</h4><table><thead><tr><th>Asset</th><th>Weight</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.t}</td><td>${fmtPct(x.w)}</td></tr>`).join('')||'<tr><td colspan="2">All weights below display threshold.</td></tr>'}</tbody></table>`;}
 function constraintDiagnosticsTable(d){if(!d)return '<p class="sub">No diagnostics returned.</p>';const rows=[['Solver status',d.solver_status||'optimal'],['Lower bound',Number.isFinite(d.lower_bound)?fmtPct(d.lower_bound):'N/A'],['Upper bound',Number.isFinite(d.upper_bound)?fmtPct(d.upper_bound):'N/A'],['Binding lower',Array.isArray(d.binding_lower)&&d.binding_lower.length?d.binding_lower.join(', '):'None'],['Binding upper',Array.isArray(d.binding_upper)&&d.binding_upper.length?d.binding_upper.join(', '):'None']];return `<table><tbody>${rows.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</tbody></table>${Array.isArray(d.factor_constraints)&&d.factor_constraints.length?`<h4>FACTOR BOUNDS</h4><table><thead><tr><th>Factor</th><th>Exposure</th><th>Range</th><th>Binding</th></tr></thead><tbody>${d.factor_constraints.map(x=>`<tr><td>${x.factor}</td><td>${fmtNum(x.exposure,3)}</td><td>${fmtNum(x.lower,3)} to ${fmtNum(x.upper,3)}</td><td>${x.binding?'YES':'NO'}</td></tr>`).join('')}</tbody></table>`:''}`;}
 async function fetchUniversePayloads(){
@@ -840,7 +896,7 @@ function frontierChart(id,o,ex=null){
     {name:'Feasible Set',type:'scatter',symbolSize:2.6,data:cloud,itemStyle:{opacity:.075},emphasis:{itemStyle:{opacity:.5}},z:1},
     {name:'Preview Frontier',type:'line',showSymbol:false,smooth:.18,data:ef,lineStyle:{width:1.1,type:'dashed',opacity:hasExact?.28:.9},z:3}
   ];
-  if(hasExact) series.push({name:'PyPortfolioOpt Exact Frontier',type:'line',showSymbol:false,smooth:.22,lineStyle:{width:3.6,opacity:1},data:exact,z:9});
+  if(hasExact) series.push({name:'PyPortfolioOpt Exact Frontier',type:'line',showSymbol:false,smooth:false,connectNulls:false,lineStyle:{width:3.6,opacity:1},data:exact,z:9});
 
   const addPoint=(name,p,symbol,size,label,pos='top',z=12)=>{
     if(!p)return;
@@ -851,13 +907,14 @@ function frontierChart(id,o,ex=null){
     });
   };
   addPoint('Minimum Volatility',minVolExact||o.minVol,'diamond',15,'MIN VOL','left',13);
-  addPoint('Maximum Sharpe / Tangency',maxSharpeExact||o.maxSharpe,'circle',17,'TANGENCY','top',14);
+  const nearReg=exactPoint&&ex?.method==='max_sharpe'&&Number(state.optimizationInputs.l2||0)>0&&maxSharpeExact&&Math.abs(exactPoint.vol-maxSharpeExact.vol)<0.012&&Math.abs(exactPoint.ret-maxSharpeExact.ret)<0.012;
+  addPoint('Maximum Sharpe / Tangency',maxSharpeExact||o.maxSharpe,'circle',17,'TANGENCY',nearReg?'left':'top',14);
   if(eq)addPoint('Equal Weight',eq,'rect',12,'EQUAL WT','bottom',11);
   if(cur)addPoint('Current Portfolio',cur,'triangle',16,'CURRENT','right',15);
   if(rpExact)addPoint('Risk Parity',rpExact,'roundRect',14,'RISK PARITY','bottom',13);
   if(blExact)addPoint('Black–Litterman',blExact,'pin',18,'BLACK–LITTERMAN','right',13);
   if(exactPoint && ex?.method==='max_sharpe' && Number(state.optimizationInputs.l2||0)>0)
-    addPoint('Selected Regularized Max Sharpe',exactPoint,'pin',18,'REG. MAX SHARPE','right',15);
+    addPoint('Selected Regularized Max Sharpe',exactPoint,'pin',18,'REG. MAX SHARPE',nearReg?'right':'right',15);
   else if(exactPoint && !['max_sharpe','min_volatility','risk_parity','black_litterman'].includes(ex?.method))
     addPoint(`Selected ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,exactPoint,'pin',18,'SELECTED','top',14);
   if(cml.length)series.push({name:'Capital Market Line',type:'line',showSymbol:false,data:cml,lineStyle:{width:1.7,type:'dotted',opacity:.8},z:6});
@@ -918,6 +975,7 @@ function drawActiveCharts() {
   if (state.active === 'FACTOR LAB' && state.factorResults.some(x=>x.result)) { factorExposureHeatmap('#factorHeatmap', state.factorResults.filter(x=>x.result)); if(state.factorPortfolio) barChart('#factorPortfolio', Object.keys(state.factorPortfolio), [{name:'Beta',data:Object.values(state.factorPortfolio)}], false); }
   if (state.active === 'OPTIMIZATION' && state.optimization) {
     frontierChart('#frontierChart', state.optimization, state.optimizerExact);
+    if(state.optimizerExact){ strategyHeatmap('#strategyWeightHeatmap',state.optimization,state.optimizerExact,'weights'); strategyHeatmap('#strategyRiskHeatmap',state.optimization,state.optimizerExact,'risk'); }
   }
 }
 

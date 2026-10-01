@@ -28,7 +28,7 @@ let state = {
   selectedUniverse: ['SPY','IWM','VLUE','QUAL','MTUM','USMV','GC=F','HG=F'],
   universePreview: [],
   optimization: null, optimizerExact: null,
-  optimizationInputs: { rf: 0.03, method:'max_sharpe', lower:0, upper:0.40, l2:0.10, blViews:'', riskBudgets:'', factorMax:{MKT:'',SMB:'',HML:'',RMW:'',CMA:'',MOM:''} },
+  optimizationInputs: { rf: 0.03, method:'max_sharpe', lower:0, upper:0.40, l2:0.10, targetReturn:0.12, targetVolatility:0.15, riskAversion:1.0, blViews:'', riskBudgets:'', factorMax:{MKT:'',SMB:'',HML:'',RMW:'',CMA:'',MOM:''} },
   factorData: null, factorResults: [], factorPortfolio: null,
   research: null,
   thesis: JSON.parse(localStorage.getItem('mk_thesis') || 'null') || { core:'', assumptions:'', invalidation:'', catalysts:'' }
@@ -513,13 +513,16 @@ function optimizationView(){
     <p class="sub">Selected universe: ${state.selectedUniverse.join(', ')||'none'}. Preview uses real Yahoo price history. Exact constrained optimization is routed to the optional Python PyPortfolioOpt service. Factor-neutral bounds require Factor Lab loadings.</p>
     <div class="portfolio-controls">
       <label>Risk-Free %<input id="optRf" type="number" step="0.1" value="${state.optimizationInputs.rf*100}"></label>
-      <label>Method<select id="optMethod">${[['max_sharpe','Max Sharpe'],['min_volatility','Minimum Volatility'],['max_quadratic_utility','Quadratic Utility'],['black_litterman','Black–Litterman'],['risk_parity','Risk Parity / ERC'],['hrp','Hierarchical Risk Parity'],['cla_min_volatility','CLA Minimum Volatility'],['cla_max_sharpe','CLA Max Sharpe'],['min_semivariance','Minimum Semivariance'],['min_cvar','Minimum CVaR'],['min_cdar','Minimum CDaR']].map(([v,n])=>`<option value="${v}" ${v===state.optimizationInputs.method?'selected':''}>${n}</option>`).join('')}</select></label>
+      <label>Optimization Strategy<select id="optMethod">${[['max_sharpe','Maximum Sharpe / Tangency'],['min_volatility','Minimum Volatility'],['efficient_return','Target Return / Minimum Risk'],['efficient_risk','Target Volatility / Maximum Return'],['max_quadratic_utility','Maximum Quadratic Utility'],['risk_parity','Risk Parity / ERC'],['hrp','Hierarchical Risk Parity'],['black_litterman','Black–Litterman'],['cla_min_volatility','CLA Minimum Volatility'],['cla_max_sharpe','CLA Maximum Sharpe'],['min_semivariance','Minimum Semivariance'],['min_cvar','Minimum CVaR'],['min_cdar','Minimum CDaR']].map(([v,n])=>`<option value="${v}" ${v===state.optimizationInputs.method?'selected':''}>${n}</option>`).join('')}</select></label>
       <label>Lower Bound<input id="optLower" type="number" step="0.01" value="${state.optimizationInputs.lower}"></label>
       <label>Upper Bound<input id="optUpper" type="number" step="0.05" value="${state.optimizationInputs.upper}"></label>
       <label>L2 Gamma<input id="optL2" type="number" step="0.05" value="${state.optimizationInputs.l2}"></label>
+      <label class="strategy-param target-return-param">Target Return %<input id="optTargetReturn" type="number" step="0.1" value="${(state.optimizationInputs.targetReturn??0.12)*100}"></label>
+      <label class="strategy-param target-vol-param">Target Volatility %<input id="optTargetVol" type="number" step="0.1" value="${(state.optimizationInputs.targetVolatility??0.15)*100}"></label>
+      <label class="strategy-param risk-aversion-param">Risk Aversion<input id="optRiskAversion" type="number" min="0.01" step="0.25" value="${state.optimizationInputs.riskAversion??1}"></label>
       <button id="runOptPreview">RUN REAL-DATA FRONTIER</button><button id="runPyOpt" class="exact-opt-btn">RUN PYPORTFOLIOOPT EXACT</button><span id="quantServiceStatus" class="quant-service-status">CHECKING QUANT ENGINE...</span>
     </div>
-    <div class="portfolio-controls advanced-opt">
+    <div id="strategyHelp" class="strategy-help"></div><div class="portfolio-controls advanced-opt">
       <label>Black–Litterman Absolute Views<input id="blViews" value="${state.optimizationInputs.blViews||''}" placeholder="SPY:0.08,GLD:0.06"></label>
       <label>Risk Budgets<input id="riskBudgets" value="${state.optimizationInputs.riskBudgets||''}" placeholder="SPY:1,GLD:1,TLT:1"></label>
     </div>
@@ -541,7 +544,7 @@ async function fetchUniversePayloads(){
   const mp=new Map(assets.map(a=>[a.ticker,a]));const missing=tickers.filter(t=>!mp.has(t));if(missing.length)throw new Error(`Missing validated data: ${missing.join(', ')}${errors.length?' • source errors returned':''}`);return tickers.map(t=>mp.get(t));
 }
 async function runOptPreview(){
-  try{state.optimizationInputs={rf:Number(document.querySelector('#optRf').value)/100,method:document.querySelector('#optMethod').value,lower:Number(document.querySelector('#optLower').value),upper:Number(document.querySelector('#optUpper').value),l2:Number(document.querySelector('#optL2').value),factorMax:Object.fromEntries(['MKT','SMB','HML','RMW','CMA','MOM'].map(k=>[k,document.querySelector('#fc'+k)?.value??'']))};const payloads=await fetchUniversePayloads();state.optimizationPayloads=payloads;state.optimization=previewFrontier(payloads,state.optimizationInputs.rf,1800);state.optimizerExact=null;renderView();}catch(e){alert(e.message);}
+  try{state.optimizationInputs={...state.optimizationInputs,rf:Number(document.querySelector('#optRf').value)/100,method:document.querySelector('#optMethod').value,lower:Number(document.querySelector('#optLower').value),upper:Number(document.querySelector('#optUpper').value),l2:Number(document.querySelector('#optL2').value),targetReturn:Number(document.querySelector('#optTargetReturn')?.value)/100,targetVolatility:Number(document.querySelector('#optTargetVol')?.value)/100,riskAversion:Number(document.querySelector('#optRiskAversion')?.value)||1,factorMax:Object.fromEntries(['MKT','SMB','HML','RMW','CMA','MOM'].map(k=>[k,document.querySelector('#fc'+k)?.value??'']))};const payloads=await fetchUniversePayloads();state.optimizationPayloads=payloads;state.optimization=previewFrontier(payloads,state.optimizationInputs.rf,1800);state.optimizerExact=null;renderView();}catch(e){alert(e.message);}
 }
 function priceMatrix(payloads){
   const maps=payloads.map(p=>new Map(p.rows.filter(r=>Number.isFinite(r.close)&&r.close>0).map(r=>[r.date,r.close])));const dates=[...maps[0].keys()].filter(d=>maps.every(m=>m.has(d))).sort();return {dates,prices:dates.map(d=>maps.map(m=>m.get(d)))};
@@ -581,7 +584,7 @@ async function runPyOpt(){
     }
     const parsePairs=(txt)=>Object.fromEntries(String(txt||'').split(',').map(x=>x.trim()).filter(Boolean).map(x=>{const [k,v]=x.split(':');return [k?.trim(),Number(v)];}).filter(([k,v])=>k&&Number.isFinite(v)));
     state.optimizationInputs.blViews=document.querySelector('#blViews')?.value||''; state.optimizationInputs.riskBudgets=document.querySelector('#riskBudgets')?.value||'';
-    const pm=priceMatrix(payloads); const body={tickers:state.selectedUniverse,dates:pm.dates,prices:pm.prices,method:document.querySelector('#optMethod').value,risk_free_rate:Number(document.querySelector('#optRf').value)/100,lower_bound:Number(document.querySelector('#optLower').value),upper_bound:Number(document.querySelector('#optUpper').value),l2_gamma:Number(document.querySelector('#optL2').value),factor_constraints:factorConstraints,absolute_views:parsePairs(state.optimizationInputs.blViews),risk_budgets:parsePairs(state.optimizationInputs.riskBudgets)};
+    const pm=priceMatrix(payloads); const body={tickers:state.selectedUniverse,dates:pm.dates,prices:pm.prices,method:document.querySelector('#optMethod').value,risk_free_rate:Number(document.querySelector('#optRf').value)/100,lower_bound:Number(document.querySelector('#optLower').value),upper_bound:Number(document.querySelector('#optUpper').value),l2_gamma:Number(document.querySelector('#optL2').value),target_return:Number(document.querySelector('#optTargetReturn')?.value)/100,target_volatility:Number(document.querySelector('#optTargetVol')?.value)/100,risk_aversion:Number(document.querySelector('#optRiskAversion')?.value)||1,factor_constraints:factorConstraints,absolute_views:parsePairs(state.optimizationInputs.blViews),risk_budgets:parsePairs(state.optimizationInputs.riskBudgets)};
     const r=await fetch('/api/optimizer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     const raw=await r.text(); let p;
     try{p=JSON.parse(raw);}catch{throw new Error(`Optimizer returned non-JSON (HTTP ${r.status}). ${raw.slice(0,120)}`);}
@@ -590,6 +593,30 @@ async function runPyOpt(){
   finally{const b=document.querySelector('#runPyOpt');if(b){b.disabled=false;b.textContent=oldText||'RUN PYPORTFOLIOOPT EXACT';}}
 }
 
+
+function updateStrategyControls(){
+  const method=document.querySelector('#optMethod')?.value||state.optimizationInputs.method;
+  const show=(sel,on)=>{const el=document.querySelector(sel);if(el)el.style.display=on?'':'none';};
+  show('.target-return-param',method==='efficient_return');
+  show('.target-vol-param',method==='efficient_risk');
+  show('.risk-aversion-param',method==='max_quadratic_utility');
+  const help={
+    max_sharpe:'Pure Tangency is the constrained maximum-Sharpe benchmark. If L2 Gamma > 0, the selected regularized Max-Sharpe portfolio is shown separately because regularization can move it away from geometric tangency.',
+    min_volatility:'Finds the lowest-volatility portfolio subject to the active weight and factor constraints.',
+    efficient_return:'Minimizes volatility for the specified annual target return.',
+    efficient_risk:'Maximizes expected return for the specified annual target volatility.',
+    max_quadratic_utility:'Balances expected return against variance using the Risk Aversion parameter.',
+    risk_parity:'Targets equal or custom risk-contribution budgets rather than maximizing expected return.',
+    hrp:'Hierarchical Risk Parity uses return clustering and does not require expected-return forecasts.',
+    black_litterman:'Combines the historical-return prior with the absolute views entered below, then optimizes the posterior portfolio.',
+    cla_min_volatility:'Critical Line Algorithm solution for minimum volatility.',
+    cla_max_sharpe:'Critical Line Algorithm solution for maximum Sharpe.',
+    min_semivariance:'Minimizes downside semivariance using historical returns.',
+    min_cvar:'Minimizes Conditional Value at Risk (CVaR).',
+    min_cdar:'Minimizes Conditional Drawdown at Risk (CDaR).'
+  };
+  const box=document.querySelector('#strategyHelp');if(box)box.textContent=help[method]||'';
+}
 
 function smartVal(v,k=''){
   if(v===null||v===undefined||v==='')return 'N/A'; if(typeof v==='string')return v;
@@ -679,7 +706,7 @@ function renderView() {
   if (state.active === 'UNIVERSE') bindUniverse();
   if (state.active === 'FACTOR LAB') document.querySelector('#runFactorLab')?.addEventListener('click', runFactorLab);
   if (state.active === 'PORTFOLIO') document.querySelector('#runPortfolio')?.addEventListener('click', runPortfolio);
-  if (state.active === 'OPTIMIZATION') { document.querySelector('#runOptPreview')?.addEventListener('click', runOptPreview); document.querySelector('#runPyOpt')?.addEventListener('click', runPyOpt); checkQuantServiceStatus(); }
+  if (state.active === 'OPTIMIZATION') { document.querySelector('#runOptPreview')?.addEventListener('click', runOptPreview); document.querySelector('#runPyOpt')?.addEventListener('click', runPyOpt); document.querySelector('#optMethod')?.addEventListener('change',updateStrategyControls); updateStrategyControls(); checkQuantServiceStatus(); }
   if (state.active === 'RESEARCH' || state.active === 'THESIS') { document.querySelector('#loadResearch')?.addEventListener('click', loadResearch); document.querySelector('#runResearchHealth')?.addEventListener('click', runResearchHealth); document.querySelector('#saveThesis')?.addEventListener('click', saveThesis); }
   if (state.active === 'STRESS') {
     document.querySelector('#runStress')?.addEventListener('click', runStress);
@@ -829,7 +856,9 @@ function frontierChart(id,o,ex=null){
   if(cur)addPoint('Current Portfolio',cur,'triangle',16,'CURRENT','right',15);
   if(rpExact)addPoint('Risk Parity',rpExact,'roundRect',14,'RISK PARITY','bottom',13);
   if(blExact)addPoint('Black–Litterman',blExact,'pin',18,'BLACK–LITTERMAN','right',13);
-  if(exactPoint && !['max_sharpe','min_volatility','risk_parity','black_litterman'].includes(ex?.method))
+  if(exactPoint && ex?.method==='max_sharpe' && Number(state.optimizationInputs.l2||0)>0)
+    addPoint('Selected Regularized Max Sharpe',exactPoint,'pin',18,'REG. MAX SHARPE','right',15);
+  else if(exactPoint && !['max_sharpe','min_volatility','risk_parity','black_litterman'].includes(ex?.method))
     addPoint(`Selected ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,exactPoint,'pin',18,'SELECTED','top',14);
   if(cml.length)series.push({name:'Capital Market Line',type:'line',showSymbol:false,data:cml,lineStyle:{width:1.7,type:'dotted',opacity:.8},z:6});
 

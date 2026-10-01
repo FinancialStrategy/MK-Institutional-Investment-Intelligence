@@ -146,3 +146,8 @@
 .quant-service-status{align-self:center;font-size:9px;letter-spacing:.08em;border:1px solid var(--border);border-radius:999px;padding:6px 9px;color:var(--muted);white-space:nowrap}
 .quant-service-status.online{color:#55d68b;border-color:rgba(85,214,139,.38);background:rgba(85,214,139,.07)}
 .quant-service-status.offline{color:#ffb067;border-color:rgba(255,176,103,.35);background:rgba(255,176,103,.06)}
+
+
+/* v0.10.9 strategy controls */
+.strategy-help{margin:10px 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;line-height:1.5;color:var(--muted);background:rgba(255,255,255,.018)}
+.strategy-param{min-width:150px}

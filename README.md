@@ -2,9 +2,9 @@
 
 Adds apples-to-apples Maximum Sharpe, Minimum Volatility, Risk Parity, Black–Litterman, Equal Weight and Current Portfolio diagnostics on a common risk/return basis, plus capital-weight and risk-contribution heatmaps.
 
-# MK Institutional Investment Intelligence — v0.11.3
+# MK Institutional Investment Intelligence — v0.11.4.2
 
-Netlify frontend + secure optional Python PortfolioOPTIM backend. v0.11.3 hardens the exact Efficient Frontier, adds CML/current/equal-weight/exact markers, and supports secured deployment on Railway or Render.
+Netlify frontend + secure optional Python PortfolioOPTIM backend. v0.11.4.2 hardens the Portfolio Strategy Comparison Lab with a single canonical backend evaluator, raw solver weights, benchmark-specific constraint diagnostics, and explicit Black-Litterman availability diagnostics. Historical path diagnostics, transaction-cost-aware NAV/drawdown comparisons, VaR/CVaR, turnover, concentration and risk-contribution analytics remain available.
 
 See `quant_service/DEPLOY.md`.
 

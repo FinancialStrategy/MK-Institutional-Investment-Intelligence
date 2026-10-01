@@ -182,3 +182,21 @@
 .frontier-analytics b{font-size:13px}
 @media(max-width:1200px){.frontier-analytics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.solution-metrics,.frontier-analytics{grid-template-columns:1fr 1fr}}
+
+/* v0.11.4 Portfolio Strategy Comparison — institutional diagnostics */
+.comparison-controls{display:flex;flex-wrap:wrap;align-items:end;gap:9px;margin:12px 0 15px;padding:10px;border:1px solid var(--border);border-radius:9px;background:rgba(255,255,255,.012)}
+.comparison-controls label{min-width:170px}
+.comparison-basis{min-width:105px;border:1px solid var(--border);border-radius:7px;padding:7px 9px;background:rgba(255,255,255,.018)}
+.comparison-basis span{display:block;color:var(--muted);font-size:8px;letter-spacing:.08em}
+.comparison-basis b{display:block;margin-top:3px;font-size:11px;font-variant-numeric:tabular-nums}
+.strategy-path-grid{grid-template-columns:1fr 1fr;gap:14px}
+.strategy-path-chart{height:330px;min-height:330px}
+.historical-compare{min-width:1380px}
+@media(max-width:1100px){.strategy-path-grid{grid-template-columns:1fr}.strategy-path-chart{height:360px}}
+
+/* v0.11.4.2 Common-Basis Consistency Fix */
+.solution-tag.warning{color:#f2b36f;border-color:rgba(242,179,111,.38);background:rgba(242,179,111,.06)}
+.solution-block.unavailable{opacity:.88}
+.strategy-unavailable td{color:var(--muted);font-style:italic}
+.consistency-ok{color:var(--good);font-weight:700;letter-spacing:.04em}
+.consistency-warning{color:#f2b36f;font-weight:700;letter-spacing:.04em}

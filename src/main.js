@@ -29,6 +29,7 @@ let state = {
   universePreview: [],
   optimization: null, optimizerExact: null,
   optimizationInputs: { rf: 0.03, method:'max_sharpe', lower:0, upper:0.40, l2:0.10, targetReturn:0.12, targetVolatility:0.15, riskAversion:1.0, blViews:'', riskBudgets:'', factorMax:{MKT:'',SMB:'',HML:'',RMW:'',CMA:'',MOM:''} },
+  comparisonInputs: { rebalance:'monthly', costBps:10, initialBasis:'current' },
   factorData: null, factorResults: [], factorPortfolio: null,
   research: null,
   thesis: JSON.parse(localStorage.getItem('mk_thesis') || 'null') || { core:'', assumptions:'', invalidation:'', catalysts:'' }
@@ -47,7 +48,7 @@ function presentationDock() {
 }
 
 function classicBrandMarkup() {
-  return `<div class="brand brand-classic"><h1>MK INSTITUTIONAL INVESTMENT INTELLIGENCE</h1><p>Institutional Research • Portfolio Risk • Market Analytics • Netlify Edition v0.11.3</p></div>`;
+  return `<div class="brand brand-classic"><h1>MK INSTITUTIONAL INVESTMENT INTELLIGENCE</h1><p>Institutional Research • Portfolio Risk • Market Analytics • Netlify Edition v0.11.4.2</p></div>`;
 }
 
 function labgenBrandMarkup() {
@@ -523,7 +524,7 @@ function optimizationView(){
       <button id="runOptPreview">RUN REAL-DATA FRONTIER</button><button id="runPyOpt" class="exact-opt-btn">RUN PORTFOLIOOPTIM EXACT</button><span id="quantServiceStatus" class="quant-service-status">CHECKING QUANT ENGINE...</span>
     </div>
     <div id="strategyHelp" class="strategy-help"></div><div class="portfolio-controls advanced-opt">
-      <label>Black–Litterman Absolute Views<input id="blViews" value="${state.optimizationInputs.blViews||''}" placeholder="SPY:0.08,GLD:0.06"></label>
+      <label>Black–Litterman Absolute Views<input id="blViews" value="${state.optimizationInputs.blViews||''}" placeholder="SPY:0.08,GC=F:0.06"></label>
       <label>Risk Budgets<input id="riskBudgets" value="${state.optimizationInputs.riskBudgets||''}" placeholder="SPY:1,GLD:1,TLT:1"></label>
     </div>
     <p class="sub">Black–Litterman views are annual expected-return views in decimal form (e.g. 0.08 = 8%). The current implementation uses historical mean returns as the prior and reports that choice explicitly. Risk Parity uses equal risk budgets when the field is blank; custom positive budgets are normalized automatically.</p>
@@ -532,38 +533,59 @@ function optimizationView(){
     <p class="sub">Example: HML = 0.10 constrains portfolio HML loading to −0.10 ≤ βHML ≤ +0.10. Leave blank for no factor constraint. HRP/CLA do not accept these linear constraints in this service.</p>
   </div>
     ${o?`<div class="grid kpis four" style="margin-top:12px">${[['OBS',o.observations],['MIN VOL',fmtPct(o.minVol.vol)],['MIN VOL RETURN',fmtPct(o.minVol.ret)],['MAX SHARPE',fmtNum(o.maxSharpe.sharpe,2)],['MS RETURN',fmtPct(o.maxSharpe.ret)],['MS VOL',fmtPct(o.maxSharpe.vol)]].map(([a,b])=>`<div class="kpi"><div class="label">${a}</div><div class="num smallnum">${b}</div></div>`).join('')}</div>
-    <div class="grid optimization-grid"><div class="panel frontier-panel"><div class="frontier-head"><div><h3>${ex?.frontier?.length?'PORTFOLIOOPTIM EFFICIENT FRONTIER':'EFFICIENT FRONTIER — PREVIEW'}</h3><p class="sub">${ex?.frontier?.length?'Exact constrained frontier is primary. CML is anchored to the unregularized Maximum Sharpe / Tangency solution; preview remains diagnostic only.':'Run PortfolioOPTIM to overlay the exact constrained frontier.'}</p></div><span class="engine-badge ${ex?.frontier?.length?'live':'preview'}">${ex?.frontier?.length?'EXACT LIVE':'PREVIEW'}</span></div>${ex?.benchmarks?.max_sharpe?.performance?frontierAnalyticsStrip(ex):''}<div id="frontierChart" class="chart frontier-chart"></div></div><div class="panel solution-panel"><h3>${ex?'PORTFOLIO SOLUTIONS':'PREVIEW PORTFOLIOS'}</h3><p class="sub solution-note">Risk/return metrics use the same annualized model shown on the frontier. Weights below 0.10% are hidden for readability.</p>${ex?.benchmarks?.min_volatility?solutionBlock('Minimum Volatility',ex.benchmarks.min_volatility,state.selectedUniverse.map(t=>ex.benchmarks.min_volatility.weights?.[t]||0)):solutionBlock('Minimum Volatility',{performance:o.minVol},o.minVol.w)}${ex?.benchmarks?.max_sharpe?solutionBlock('Maximum Sharpe / Tangency',ex.benchmarks.max_sharpe,state.selectedUniverse.map(t=>ex.benchmarks.max_sharpe.weights?.[t]||0),true):solutionBlock('Maximum Sharpe',{performance:o.maxSharpe},o.maxSharpe.w,true)}${ex?.benchmarks?.risk_parity?solutionBlock('Risk Parity',ex.benchmarks.risk_parity,state.selectedUniverse.map(t=>ex.benchmarks.risk_parity.weights?.[t]||0)):''}${ex?.benchmarks?.black_litterman?solutionBlock('Black–Litterman',ex.benchmarks.black_litterman,state.selectedUniverse.map(t=>ex.benchmarks.black_litterman.weights?.[t]||0)):''}${ex && !['max_sharpe','min_volatility','risk_parity','black_litterman'].includes(ex.method)?solutionBlock(`Selected — ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,{performance:ex.performance},state.selectedUniverse.map(t=>ex.weights?.[t]||0)):''}</div></div>`:''}
-    ${ex?`<div class="panel strategy-comparison-panel" style="margin-top:12px"><div class="frontier-head"><div><h3>PORTFOLIO STRATEGY COMPARISON LAB</h3><p class="sub">Apples-to-apples evaluation: every portfolio is re-scored on the same selected universe, dates, historical expected-return vector, covariance matrix, risk-free rate and common constraints. Black–Litterman may use posterior views for optimization, but the comparison metrics below are recomputed on the common market-data model.</p></div><span class="engine-badge live">COMMON BASIS</span></div>${strategyComparisonTable(o,ex)}<div class="grid two strategy-heat-grid" style="margin-top:12px"><div><h4>CAPITAL WEIGHTS HEATMAP</h4><div id="strategyWeightHeatmap" class="chart strategy-heatmap"></div></div><div><h4>RISK CONTRIBUTION HEATMAP</h4><div id="strategyRiskHeatmap" class="chart strategy-heatmap"></div></div></div><p class="sub comparison-note">Return/volatility/Sharpe are common-basis diagnostics, not a claim of out-of-sample superiority. For a genuine performance comparison, use the Walk-Forward module with identical estimation windows, rebalance cadence and transaction-cost assumptions.</p></div>`:''}
-    ${ex?`<div class="grid two" style="margin-top:12px"><div class="panel"><h3>PORTFOLIOOPTIM — ${ex.method}</h3><p class="sub">Engine: ${ex.engine} • ${ex.observations} complete observations • ${ex.data_start} → ${ex.data_end}</p>${ex.factor_exposure?`<h4>OPTIMIZED FACTOR EXPOSURE</h4><table><tbody>${Object.entries(ex.factor_exposure).map(([k,v])=>`<tr><td>${k}</td><td>${fmtNum(v,3)}</td></tr>`).join('')}</tbody></table>`:''}<pre class="jsonbox">${JSON.stringify(ex.performance,null,2)}</pre></div><div class="panel"><h3>CONSTRAINT DIAGNOSTICS</h3>${constraintDiagnosticsTable(ex.constraint_diagnostics)}<p class="sub">Binding constraints explain why optimized weights may sit exactly on configured caps/floors.</p></div></div>`:''}`;
+    <div class="grid optimization-grid"><div class="panel frontier-panel"><div class="frontier-head"><div><h3>${ex?.frontier?.length?'PORTFOLIOOPTIM EFFICIENT FRONTIER':'EFFICIENT FRONTIER — PREVIEW'}</h3><p class="sub">${ex?.frontier?.length?'Exact constrained frontier is primary. CML is anchored to the unregularized Maximum Sharpe / Tangency solution; preview remains diagnostic only.':'Run PortfolioOPTIM to overlay the exact constrained frontier.'}</p></div><span class="engine-badge ${ex?.frontier?.length?'live':'preview'}">${ex?.frontier?.length?'EXACT LIVE':'PREVIEW'}</span></div>${ex?.benchmarks?.max_sharpe?.performance?frontierAnalyticsStrip(ex):''}<div id="frontierChart" class="chart frontier-chart"></div></div><div class="panel solution-panel"><h3>${ex?'PORTFOLIO SOLUTIONS':'PREVIEW PORTFOLIOS'}</h3><p class="sub solution-note">Risk/return metrics use the same annualized model shown on the frontier. Weights below 0.10% are hidden for readability.</p>${ex?.benchmarks?.min_volatility?solutionBlock('Minimum Volatility',ex.benchmarks.min_volatility,state.selectedUniverse.map(t=>ex.benchmarks.min_volatility.weights?.[t]||0)):solutionBlock('Minimum Volatility',{performance:o.minVol},o.minVol.w)}${ex?.benchmarks?.max_sharpe?solutionBlock('Maximum Sharpe / Tangency',ex.benchmarks.max_sharpe,state.selectedUniverse.map(t=>ex.benchmarks.max_sharpe.weights?.[t]||0),true):solutionBlock('Maximum Sharpe',{performance:o.maxSharpe},o.maxSharpe.w,true)}${ex?.benchmarks?.risk_parity?solutionBlock('Risk Parity',ex.benchmarks.risk_parity,state.selectedUniverse.map(t=>ex.benchmarks.risk_parity.weights?.[t]||0)):''}${ex?.benchmarks?.black_litterman?solutionBlock('Black–Litterman — Common Basis',ex.benchmarks.black_litterman,state.selectedUniverse.map(t=>ex.benchmarks.black_litterman.weights?.[t]||0)):ex?.benchmarks?.black_litterman_error?unavailableSolutionBlock('Black–Litterman',ex.benchmarks.black_litterman_error):''}${ex && !['max_sharpe','min_volatility','risk_parity','black_litterman'].includes(ex.method)?solutionBlock(`Selected — ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,{performance:ex.performance},state.selectedUniverse.map(t=>ex.weights?.[t]||0)):''}</div></div>`:''}
+    ${ex?`<div class="panel strategy-comparison-panel" style="margin-top:12px"><div class="frontier-head"><div><h3>PORTFOLIO STRATEGY COMPARISON LAB</h3><p class="sub">Institutional apples-to-apples comparison: optimizer strategies use the same selected universe, common dates, PortfolioOPTIM evaluation model, risk-free rate and active bounds/factor constraints. Equal Weight and Current Portfolio are reference portfolios and may sit outside optimizer constraints. Historical path diagnostics apply the same funding basis, rebalance cadence and transaction-cost assumption to every target portfolio.</p></div><span class="engine-badge live">COMMON BASIS</span></div><div class="comparison-controls"><label>Rebalance<select id="cmpRebalance"><option value="monthly" ${state.comparisonInputs.rebalance==='monthly'?'selected':''}>Monthly</option><option value="quarterly" ${state.comparisonInputs.rebalance==='quarterly'?'selected':''}>Quarterly</option><option value="none" ${state.comparisonInputs.rebalance==='none'?'selected':''}>Buy & Hold / No Rebalance</option></select></label><label>Initial Funding<select id="cmpInitialBasis"><option value="current" ${state.comparisonInputs.initialBasis==='current'?'selected':''}>Current Portfolio if available</option><option value="cash" ${state.comparisonInputs.initialBasis==='cash'?'selected':''}>Cash / New Funding</option><option value="target" ${state.comparisonInputs.initialBasis==='target'?'selected':''}>Assume Already at Target</option></select></label><label>Transaction Cost (bp)<input id="cmpCostBps" type="number" min="0" step="1" value="${state.comparisonInputs.costBps}"></label><div class="comparison-basis"><span>UNIVERSE</span><b>${state.selectedUniverse.length} assets</b></div><div class="comparison-basis"><span>OBS</span><b>${o.observations}</b></div><div class="comparison-basis"><span>RF</span><b>${fmtPct(state.optimizationInputs.rf)}</b></div><div class="comparison-basis"><span>BOUNDS</span><b>${fmtPct(state.optimizationInputs.lower)} / ${fmtPct(state.optimizationInputs.upper)}</b></div></div><h4>MODEL SNAPSHOT — PORTFOLIOOPTIM COMMON EVALUATION MODEL</h4>${strategyComparisonTable(o,ex)}<h4>HISTORICAL PATH DIAGNOSTICS — COMMON SAMPLE</h4>${strategyHistoricalTable(o,ex)}<div class="grid two strategy-path-grid" style="margin-top:12px"><div><h4>STRATEGY NAV — NET OF ASSUMED COSTS</h4><div id="strategyNavChart" class="chart strategy-path-chart"></div></div><div><h4>DRAWDOWN PATH</h4><div id="strategyDrawdownChart" class="chart strategy-path-chart"></div></div></div><div class="grid two strategy-heat-grid" style="margin-top:12px"><div><h4>CAPITAL WEIGHTS HEATMAP</h4><div id="strategyWeightHeatmap" class="chart strategy-heatmap"></div></div><div><h4>RISK CONTRIBUTION HEATMAP</h4><div id="strategyRiskHeatmap" class="chart strategy-heatmap"></div></div></div><p class="sub comparison-note"><strong>Governance:</strong> historical path diagnostics are in-sample implementation diagnostics of today's target weights, not an out-of-sample performance claim. Use Walk-Forward for forecast-valid strategy evaluation. Black–Litterman uses posterior views to form weights, then is re-evaluated on the same PortfolioOPTIM base model and realized path as every other strategy. Daily VaR/CVaR are empirical 1-day measures. Initial transition costs follow the selected funding basis.</p></div>`:''}
+    ${ex?`<div class="grid two" style="margin-top:12px"><div class="panel"><h3>PORTFOLIOOPTIM — ${ex.method}</h3><p class="sub">Engine: ${ex.engine} • ${ex.observations} complete observations • ${ex.data_start} → ${ex.data_end}</p>${ex.factor_exposure?`<h4>OPTIMIZED FACTOR EXPOSURE</h4><table><tbody>${Object.entries(ex.factor_exposure).map(([k,v])=>`<tr><td>${k}</td><td>${fmtNum(v,3)}</td></tr>`).join('')}</tbody></table>`:''}<pre class="jsonbox">${JSON.stringify(ex.performance,null,2)}</pre></div><div class="panel"><h3>SELECTED STRATEGY CONSTRAINT DIAGNOSTICS</h3><p class="sub">Scope: selected ${String(ex.method||'optimizer').replaceAll('_',' ')}${ex.method==='max_sharpe'&&Number(state.optimizationInputs.l2||0)>0?' with L2 regularization':''}. These bindings can differ from the pure Tangency benchmark.</p>${constraintDiagnosticsTable(ex.constraint_diagnostics)}${ex?.benchmarks?.max_sharpe?.constraint_diagnostics?`<h4>TANGENCY BENCHMARK BINDINGS</h4>${constraintDiagnosticsTable(ex.benchmarks.max_sharpe.constraint_diagnostics)}`:''}<p class="sub">Binding constraints explain why optimized weights may sit exactly on configured caps/floors.</p></div></div>`:''}`;
+}
+
+function commonOptimizationModel(o,ex){
+  const tickers=state.selectedUniverse;
+  const mu=tickers.map(t=>Number(ex?.expected_returns?.[t]));
+  const sigma=tickers.map(r=>tickers.map(c=>Number(ex?.covariance?.[r]?.[c])));
+  if(mu.length&&mu.every(Number.isFinite)&&sigma.length===tickers.length&&sigma.every(row=>row.length===tickers.length&&row.every(Number.isFinite))){
+    return {mu,sigma,source:'PortfolioOPTIM',spec:ex?.model_spec||{}};
+  }
+  return o;
 }
 
 function strategyComparisonRows(o,ex){
   if(!o)return [];
+  const model=commonOptimizationModel(o,ex);
   const bench=ex?.benchmarks||{};
   const rows=[];
   const curW=selectedCurrentWeights();
-  const add=(key,label,weights,kind='optimizer')=>{
+  const add=(key,label,weights,kind='optimizer',source=null)=>{
     if(!weights||weights.length!==state.selectedUniverse.length)return;
     const w=weights.map(Number);
     if(!w.every(Number.isFinite))return;
     const sum=w.reduce((a,b)=>a+b,0); if(!(sum>0))return;
     const wn=w.map(x=>x/sum);
-    const p=portfolioPointFromWeights(wn,o); if(!p)return;
+    // PortfolioOPTIM backend is the canonical evaluator for optimizer strategies.
+    // Frontend re-evaluation is used only for reference portfolios or as fallback.
+    const canonical=canonicalStrategyPerf(source);
+    const local=portfolioPointFromWeights(wn,model);
+    const p=canonical||local; if(!p)return;
     const hhi=wn.reduce((a,x)=>a+x*x,0);
     const maxWeight=Math.max(...wn.map(Math.abs));
     const turnover=curW?0.5*wn.reduce((a,x,i)=>a+Math.abs(x-curW[i]),0):NaN;
-    rows.push({key,label,kind,weights:wn,...p,hhi,effectiveN:hhi>0?1/hhi:NaN,maxWeight,turnover});
+    const consistency=(canonical&&local)?{
+      retDelta:Math.abs(canonical.ret-local.ret),
+      volDelta:Math.abs(canonical.vol-local.vol),
+      sharpeDelta:Math.abs(canonical.sharpe-local.sharpe),
+    }:null;
+    rows.push({key,label,kind,weights:wn,...p,hhi,effectiveN:hhi>0?1/hhi:NaN,maxWeight,turnover,consistency});
   };
   const bw=x=>state.selectedUniverse.map(t=>Number(x?.weights?.[t]||0));
-  add('max_sharpe','Maximum Sharpe / Tangency',bw(bench.max_sharpe));
-  add('min_volatility','Minimum Volatility',bw(bench.min_volatility));
-  add('risk_parity','Risk Parity',bw(bench.risk_parity));
-  if(bench.black_litterman)add('black_litterman','Black–Litterman',bw(bench.black_litterman));
+  add('max_sharpe','Maximum Sharpe / Tangency',bw(bench.max_sharpe),'optimizer',bench.max_sharpe);
+  add('min_volatility','Minimum Volatility',bw(bench.min_volatility),'optimizer',bench.min_volatility);
+  add('risk_parity','Risk Parity',bw(bench.risk_parity),'optimizer',bench.risk_parity);
+  if(bench.black_litterman)add('black_litterman','Black–Litterman',bw(bench.black_litterman),'optimizer',bench.black_litterman);
   const eq=Array(state.selectedUniverse.length).fill(1/Math.max(1,state.selectedUniverse.length));
   add('equal_weight','Equal Weight',eq,'benchmark');
   if(curW)add('current','Current Portfolio',curW,'benchmark');
   return rows;
 }
+
 function riskContributionShares(weights,o){
   if(!weights||!o?.sigma)return [];
   const n=weights.length, sw=Array(n).fill(0);
@@ -575,15 +597,91 @@ function riskContributionShares(weights,o){
 function strategyComparisonTable(o,ex){
   const rows=strategyComparisonRows(o,ex);
   if(!rows.length)return '<p class="sub">Run PortfolioOPTIM Exact to populate the strategy comparison.</p>';
-  return `<div class="strategy-compare-wrap"><table class="strategy-compare"><thead><tr><th>Strategy</th><th>Return</th><th>Volatility</th><th>Sharpe</th><th>HHI</th><th>Effective N</th><th>Max Weight</th><th>Turnover vs Current</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${r.label}</b></td><td>${fmtPct(r.ret)}</td><td>${fmtPct(r.vol)}</td><td>${fmtNum(r.sharpe,2)}</td><td>${fmtNum(r.hhi,3)}</td><td>${fmtNum(r.effectiveN,2)}</td><td>${fmtPct(r.maxWeight)}</td><td>${Number.isFinite(r.turnover)?fmtPct(r.turnover):'N/A'}</td></tr>`).join('')}</tbody></table></div>`;
+  const spec=ex?.model_spec||{}, bench=ex?.benchmarks||{};
+  const unavailableBl=!bench.black_litterman;
+  const blReason=bench.black_litterman_error||'No valid Black–Litterman solution returned.';
+  const body=rows.map(r=>`<tr><td><b>${r.label}</b></td><td>${r.kind==='benchmark'?'Reference':'Optimizer'}</td><td>${fmtPct(r.ret)}</td><td>${fmtPct(r.vol)}</td><td>${fmtNum(r.sharpe,2)}</td><td>${fmtNum(r.hhi,3)}</td><td>${fmtNum(r.effectiveN,2)}</td><td>${fmtPct(r.maxWeight)}</td><td>${Number.isFinite(r.turnover)?fmtPct(r.turnover):'N/A'}</td></tr>`).join('');
+  const blRow=unavailableBl?`<tr class="strategy-unavailable"><td><b>Black–Litterman</b></td><td>Optimizer</td><td colspan="7">UNAVAILABLE — ${blReason}</td></tr>`:'';
+  const maxMismatch=Math.max(0,...rows.filter(r=>r.consistency).map(r=>Math.max(r.consistency.retDelta,r.consistency.volDelta)));
+  const audit=maxMismatch>5e-7?`<span class="consistency-warning">MODEL CHECK WARNING: max local/backend delta ${fmtNum(maxMismatch*10000,2)} bp</span>`:'<span class="consistency-ok">MODEL CHECK PASS</span>';
+  return `<div class="strategy-compare-wrap"><table class="strategy-compare"><thead><tr><th>Strategy</th><th>Type</th><th>Return</th><th>Volatility</th><th>Sharpe</th><th>HHI</th><th>Effective N</th><th>Max Weight</th><th>Turnover vs Current</th></tr></thead><tbody>${body}${blRow}</tbody></table></div><p class="sub comparison-model-note">Common evaluation: ${spec.expected_return_model||'PortfolioOPTIM expected returns'} • ${spec.risk_model||'PortfolioOPTIM covariance'} • annualization ${spec.frequency||252} • evaluator ${spec.comparison_evaluator||'common model'}. ${audit} Comparison benchmarks are unregularized; L2 remains a selected-strategy control.</p>`;
 }
+
+
+function quantileSorted(a,q){
+  if(!a.length)return NaN;
+  const x=[...a].sort((u,v)=>u-v), p=(x.length-1)*q, lo=Math.floor(p), hi=Math.ceil(p);
+  return lo===hi?x[lo]:x[lo]+(p-lo)*(x[hi]-x[lo]);
+}
+function rebalanceKey(date,mode){
+  if(mode==='none')return 'ALL';
+  const y=String(date).slice(0,4), m=Number(String(date).slice(5,7));
+  return mode==='quarterly'?`${y}-Q${Math.floor((m-1)/3)+1}`:`${y}-${String(m).padStart(2,'0')}`;
+}
+function historicalPathForWeights(targetWeights){
+  if(!state.optimizationPayloads?.length||!targetWeights?.length)return null;
+  const a=alignReturns(state.optimizationPayloads); if(!a?.returns?.length)return null;
+  const target=targetWeights.map(Number), s=target.reduce((x,y)=>x+y,0); if(!(s>0))return null;
+  const tw=target.map(x=>x/s), mode=state.comparisonInputs?.rebalance||'monthly', bps=Math.max(0,Number(state.comparisonInputs?.costBps||0));
+  const basis=state.comparisonInputs?.initialBasis||'current', curW=selectedCurrentWeights();
+  let initialTurnover=0;
+  if(basis==='cash') initialTurnover=1.0;
+  else if(basis==='current'&&curW) initialTurnover=.5*tw.reduce((z,x,i)=>z+Math.abs(x-curW[i]),0);
+  // target basis intentionally assumes the portfolio already holds target weights.
+  let w=[...tw], lastKey=rebalanceKey(a.dates[0],mode), turnover=initialTurnover;
+  const initialCost=initialTurnover*bps/10000;
+  let nav=Math.max(1-initialCost,1e-9), grossNav=1, peak=nav, costDrag=initialCost;
+  const navs=[], grossNavs=[], dds=[], rets=[], grossRets=[], monthly=new Map();
+  for(let t=0;t<a.returns.length;t++){
+    const key=rebalanceKey(a.dates[t],mode); let tc=0;
+    if(t>0&&mode!=='none'&&key!==lastKey){
+      const tr=.5*w.reduce((z,x,i)=>z+Math.abs(x-tw[i]),0); turnover+=tr; tc=tr*bps/10000; costDrag+=tc; w=[...tw]; lastKey=key;
+    }
+    const simple=a.returns[t].map(x=>Math.exp(x)-1);
+    const gross=w.reduce((z,x,i)=>z+x*simple[i],0), net=gross-tc;
+    nav*=Math.max(1+net,1e-9); grossNav*=Math.max(1+gross,1e-9); peak=Math.max(peak,nav); const dd=nav/peak-1;
+    rets.push(net); grossRets.push(gross); navs.push(nav); grossNavs.push(grossNav); dds.push(dd);
+    const mk=String(a.dates[t]).slice(0,7), cur=monthly.get(mk)??1; monthly.set(mk,cur*(1+net));
+    const denom=1+gross;
+    if(denom>0)w=w.map((x,i)=>x*(1+simple[i])/denom);
+  }
+  const n=rets.length, years=n/252, cagr=years>0?Math.pow(nav,1/years)-1:NaN, grossCagr=years>0?Math.pow(grossNav,1/years)-1:NaN;
+  const avg=rets.reduce((x,y)=>x+y,0)/Math.max(1,n), variance=rets.reduce((x,y)=>x+(y-avg)**2,0)/Math.max(1,n-1), dailySd=Math.sqrt(Math.max(0,variance)), vol=dailySd*Math.sqrt(252);
+  const rf=Number(state.optimizationInputs.rf||0), rfDaily=Math.pow(1+rf,1/252)-1;
+  const excess=rets.map(x=>x-rfDaily), avgExcess=excess.reduce((x,y)=>x+y,0)/Math.max(1,n);
+  const sharpe=dailySd>0?avgExcess/dailySd*Math.sqrt(252):NaN;
+  const downsideDaily=Math.sqrt(excess.reduce((z,x)=>z+Math.min(x,0)**2,0)/Math.max(1,n));
+  const sortino=downsideDaily>0?avgExcess/downsideDaily*Math.sqrt(252):NaN;
+  const mdd=Math.min(0,...dds), calmar=Math.abs(mdd)>1e-12?cagr/Math.abs(mdd):NaN;
+  const q01=quantileSorted(rets,.01), tail=rets.filter(x=>x<=q01), var99=-q01, cvar99=tail.length?-tail.reduce((z,x)=>z+x,0)/tail.length:NaN;
+  const posDays=rets.filter(x=>x>0).length/Math.max(1,n), mrets=[...monthly.values()].map(x=>x-1), worstMonth=mrets.length?Math.min(...mrets):NaN;
+  const annTurnover=years>0?turnover/years:NaN, annCost=Number.isFinite(grossCagr)&&Number.isFinite(cagr)?grossCagr-cagr:NaN;
+  return {dates:a.dates,navs,grossNavs,dds,rets,grossRets,cagr,grossCagr,vol,sharpe,sortino,mdd,calmar,var99,cvar99,worstMonth,posDays,annTurnover,annCost,turnover,costDrag,initialTurnover};
+}
+function strategyHistoricalRows(o,ex){
+  return strategyComparisonRows(o,ex).map(r=>({...r,hist:historicalPathForWeights(r.weights)})).filter(r=>r.hist);
+}
+function strategyHistoricalTable(o,ex){
+  const rows=strategyHistoricalRows(o,ex); if(!rows.length)return '<p class="sub">Historical comparison path unavailable.</p>';
+  return `<div class="strategy-compare-wrap"><table class="strategy-compare historical-compare"><thead><tr><th>Strategy</th><th>CAGR</th><th>Ann. Vol</th><th>Sharpe</th><th>Sortino</th><th>Max DD</th><th>Calmar</th><th>1D VaR 99%</th><th>1D CVaR 99%</th><th>Worst Month</th><th>Positive Days</th><th>Ann. Turnover</th><th>Ann. Cost Drag</th><th>Initial Turnover</th></tr></thead><tbody>${rows.map(r=>{const h=r.hist;return `<tr><td><b>${r.label}</b></td><td>${fmtPct(h.cagr)}</td><td>${fmtPct(h.vol)}</td><td>${fmtNum(h.sharpe,2)}</td><td>${fmtNum(h.sortino,2)}</td><td>${fmtPct(h.mdd)}</td><td>${fmtNum(h.calmar,2)}</td><td>${fmtPct(h.var99)}</td><td>${fmtPct(h.cvar99)}</td><td>${fmtPct(h.worstMonth)}</td><td>${fmtPct(h.posDays)}</td><td>${fmtPct(h.annTurnover)}</td><td>${fmtPct(h.annCost)}</td><td>${fmtPct(h.initialTurnover)}</td></tr>`}).join('')}</tbody></table></div>`;
+}
+function strategyPathChart(id,o,ex,mode='nav'){
+  const el=document.querySelector(id); if(!el)return;
+  const rows=strategyHistoricalRows(o,ex); if(!rows.length)return;
+  const dates=rows[0].hist.dates, series=rows.map(r=>({name:r.label,type:'line',showSymbol:false,smooth:false,data:(mode==='nav'?r.hist.navs:r.hist.dds),lineStyle:{width:r.kind==='benchmark'?1.3:2}}));
+  const {muted,grid}=baseAxis(), c=echarts.init(el);
+  c.setOption({animation:false,tooltip:{trigger:'axis',confine:true},legend:{top:0,type:'scroll',textStyle:{color:muted,fontSize:9}},grid:{left:62,right:22,top:48,bottom:45},xAxis:{type:'category',data:dates,boundaryGap:false,axisLabel:{color:muted,fontSize:9},axisLine:{lineStyle:{color:grid}}},yAxis:{type:'value',scale:mode==='nav',axisLabel:{color:muted,formatter:v=>mode==='nav'?Number(v).toFixed(2):`${(v*100).toFixed(0)}%`},splitLine:{lineStyle:{color:grid,type:'dashed'}}},series},true);
+  requestAnimationFrame(()=>c.resize());
+}
+
 function strategyHeatmap(id,o,ex,mode='weights'){
   const el=document.querySelector(id); if(!el)return;
   const rows=strategyComparisonRows(o,ex); if(!rows.length)return;
+  const model=commonOptimizationModel(o,ex);
   const {muted}=baseAxis(); const assets=state.selectedUniverse;
   const data=[];
   rows.forEach((r,yi)=>{
-    const vals=mode==='risk'?riskContributionShares(r.weights,o):r.weights;
+    const vals=mode==='risk'?riskContributionShares(r.weights,model):r.weights;
     vals.forEach((v,xi)=>data.push([xi,yi,Number.isFinite(v)?v:null]));
   });
   const vals=data.map(x=>Math.abs(x[2])).filter(Number.isFinite); const mx=Math.max(.01,...vals);
@@ -598,8 +696,14 @@ function perfTriplet(perf){
   const sharpe=Number(perf.sharpe);
   return {ret,vol,sharpe};
 }
+function canonicalStrategyPerf(source){
+  return perfTriplet(source?.common_performance || source?.performance || source);
+}
+function unavailableSolutionBlock(title,reason){
+  return `<section class="solution-block unavailable"><div class="solution-title"><h4>${title}</h4><span class="solution-tag warning">UNAVAILABLE</span></div><p class="sub">${reason||'No valid solution returned.'}</p></section>`;
+}
 function solutionBlock(title,source,w,isTangency=false){
-  const p=perfTriplet(source?.performance||source);
+  const p=canonicalStrategyPerf(source);
   const metrics=p?`<div class="solution-metrics">
     <div><span>RETURN</span><b>${fmtPct(p.ret)}</b></div>
     <div><span>VOLATILITY</span><b>${fmtPct(p.vol)}</b></div>
@@ -609,8 +713,8 @@ function solutionBlock(title,source,w,isTangency=false){
   return `<section class="solution-block"><div class="solution-title"><h4>${title}</h4>${tag}</div>${metrics}${weightsTable('',w,0.001)}</section>`;
 }
 function frontierAnalyticsStrip(ex){
-  const t=perfTriplet(ex?.benchmarks?.max_sharpe?.performance);
-  const m=perfTriplet(ex?.benchmarks?.min_volatility?.performance);
+  const t=canonicalStrategyPerf(ex?.benchmarks?.max_sharpe);
+  const m=canonicalStrategyPerf(ex?.benchmarks?.min_volatility);
   if(!t)return '';
   const rf=Number(state.optimizationInputs.rf||0);
   const slope=Number.isFinite(t.vol)&&t.vol>0?(t.ret-rf)/t.vol:NaN;
@@ -793,7 +897,7 @@ function renderView() {
   if (state.active === 'UNIVERSE') bindUniverse();
   if (state.active === 'FACTOR LAB') document.querySelector('#runFactorLab')?.addEventListener('click', runFactorLab);
   if (state.active === 'PORTFOLIO') document.querySelector('#runPortfolio')?.addEventListener('click', runPortfolio);
-  if (state.active === 'OPTIMIZATION') { document.querySelector('#runOptPreview')?.addEventListener('click', runOptPreview); document.querySelector('#runPyOpt')?.addEventListener('click', runPyOpt); document.querySelector('#optMethod')?.addEventListener('change',updateStrategyControls); updateStrategyControls(); checkQuantServiceStatus(); }
+  if (state.active === 'OPTIMIZATION') { document.querySelector('#runOptPreview')?.addEventListener('click', runOptPreview); document.querySelector('#runPyOpt')?.addEventListener('click', runPyOpt); document.querySelector('#optMethod')?.addEventListener('change',updateStrategyControls); document.querySelector('#cmpRebalance')?.addEventListener('change',e=>{state.comparisonInputs.rebalance=e.target.value;renderView();}); document.querySelector('#cmpInitialBasis')?.addEventListener('change',e=>{state.comparisonInputs.initialBasis=e.target.value;renderView();}); document.querySelector('#cmpCostBps')?.addEventListener('change',e=>{state.comparisonInputs.costBps=Math.max(0,Number(e.target.value)||0);renderView();}); updateStrategyControls(); checkQuantServiceStatus(); }
   if (state.active === 'RESEARCH' || state.active === 'THESIS') { document.querySelector('#loadResearch')?.addEventListener('click', loadResearch); document.querySelector('#runResearchHealth')?.addEventListener('click', runResearchHealth); document.querySelector('#saveThesis')?.addEventListener('click', saveThesis); }
   if (state.active === 'STRESS') {
     document.querySelector('#runStress')?.addEventListener('click', runStress);
@@ -870,34 +974,40 @@ function portfolioPointFromWeights(w,o){
 function frontierChart(id,o,ex=null){
   const el=document.querySelector(id); if(!el)return;
   const {muted,grid}=baseAxis(); const c=echarts.init(el);
+  const model=commonOptimizationModel(o,ex);
   const finite=p=>Number.isFinite(p?.vol)&&Number.isFinite(p?.ret);
-  const pts=(o.points||[]).filter(finite);
-  const step=Math.max(1,Math.ceil(pts.length/360));
-  const cloud=pts.filter((_,i)=>i%step===0).map(p=>[p.vol,p.ret,p.sharpe]);
-  const ef=(o.frontier||[]).filter(finite).map(p=>[p.vol,p.ret,p.sharpe]);
+  // Re-score sampled feasible portfolios on the same PortfolioOPTIM model used by
+  // the exact frontier whenever the backend model matrix is available.
+  const rescored=(o.points||[]).map(p=>p?.w?{...portfolioPointFromWeights(p.w,model),w:p.w}:p).filter(finite);
+  rescored.sort((a,b)=>a.vol-b.vol);
+  const sampledFrontier=[]; let best=-Infinity;
+  for(const p of rescored){if(p.ret>best){sampledFrontier.push(p);best=p.ret;}}
+  const step=Math.max(1,Math.ceil(rescored.length/360));
+  const cloud=rescored.filter((_,i)=>i%step===0).map(p=>[p.vol,p.ret,p.sharpe]);
+  const ef=sampledFrontier.map(p=>[p.vol,p.ret,p.sharpe]);
   const exact=(ex?.frontier||[])
     .filter(p=>Number.isFinite(p?.volatility)&&Number.isFinite(p?.return))
     .sort((a,b)=>a.volatility-b.volatility)
     .map(p=>[p.volatility,p.return,p.sharpe]);
 
   const eqW=Array(state.selectedUniverse.length).fill(1/Math.max(1,state.selectedUniverse.length));
-  const eq=portfolioPointFromWeights(eqW,o);
-  const cur=portfolioPointFromWeights(selectedCurrentWeights(),o);
+  const eq=portfolioPointFromWeights(eqW,model);
+  const cur=portfolioPointFromWeights(selectedCurrentWeights(),model);
   const exactPoint=(ex?.performance&&Number.isFinite(ex.performance.volatility)&&Number.isFinite(ex.performance.expected_return))
     ? {vol:ex.performance.volatility,ret:ex.performance.expected_return,sharpe:ex.performance.sharpe}
     : null;
   const bench=ex?.benchmarks||{};
-  const pickPerf=x=>x?.performance&&Number.isFinite(x.performance.volatility)&&Number.isFinite(x.performance.expected_return)
-    ? {vol:x.performance.volatility,ret:x.performance.expected_return,sharpe:x.performance.sharpe}:null;
+  const benchWeights=x=>state.selectedUniverse.map(t=>Number(x?.weights?.[t]||0));
+  const pickPerf=x=>{const p=canonicalStrategyPerf(x);return p&&Number.isFinite(p.vol)&&Number.isFinite(p.ret)?{vol:p.vol,ret:p.ret,sharpe:p.sharpe}:null;};
   const minVolExact=pickPerf(bench.min_volatility);
   const maxSharpeExact=pickPerf(bench.max_sharpe);
-  const rpExact=pickPerf(bench.risk_parity);
-  const blExact=pickPerf(bench.black_litterman);
+  // Risk Parity and Black-Litterman are re-scored on the common base model for
+  // placement relative to the exact mean-variance frontier.
+  const rpExact=bench.risk_parity?(pickPerf(bench.risk_parity)||portfolioPointFromWeights(benchWeights(bench.risk_parity),model)):null;
+  const blExact=bench.black_litterman?(pickPerf(bench.black_litterman)||portfolioPointFromWeights(benchWeights(bench.black_litterman),model)):null;
   const tangent=maxSharpeExact||o.maxSharpe;
   const rf=Number(state.optimizationInputs.rf||0);
 
-  // Axis scaling is intentionally based on investable portfolios only.
-  // The risk-free intercept must not stretch the vertical scale.
   const markers=[eq,cur,exactPoint,minVolExact,maxSharpeExact,rpExact,blExact].filter(Boolean);
   const investable=[...cloud,...ef,...exact,...markers.map(p=>[p.vol,p.ret,p.sharpe])]
     .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
@@ -910,7 +1020,6 @@ function frontierChart(id,o,ex=null){
   const axisXMin=Math.max(0,xmin-xpad), axisXMax=xmax+xpad;
   const axisYMin=ymin-ypad, axisYMax=ymax+ypad;
 
-  // Clip the CML to the visible plot instead of forcing the chart down to RF.
   let cml=[];
   if(tangent&&Number.isFinite(tangent.vol)&&tangent.vol>0&&Number.isFinite(tangent.ret)){
     const slope=(tangent.ret-rf)/tangent.vol;
@@ -924,8 +1033,8 @@ function frontierChart(id,o,ex=null){
 
   const hasExact=exact.length>1;
   const series=[
-    {name:'Feasible Set',type:'scatter',symbolSize:2.2,data:cloud,itemStyle:{opacity:.045},emphasis:{itemStyle:{opacity:.32}},z:1},
-    {name:'Preview Frontier',type:'line',showSymbol:false,smooth:.12,data:ef,lineStyle:{width:1,type:'dashed',opacity:hasExact?.18:.75},z:2}
+    {name:'Sampled Feasible Set',type:'scatter',symbolSize:2.2,data:cloud,itemStyle:{opacity:.045},emphasis:{itemStyle:{opacity:.32}},z:1},
+    {name:'Sampled Frontier Envelope',type:'line',showSymbol:false,smooth:false,data:ef,lineStyle:{width:1,type:'dashed',opacity:hasExact?.18:.75},z:2}
   ];
   if(hasExact) series.push({name:'PortfolioOPTIM Exact Frontier',type:'line',showSymbol:false,smooth:false,connectNulls:false,lineStyle:{width:3.6,opacity:1},data:exact,z:9});
 
@@ -942,8 +1051,8 @@ function frontierChart(id,o,ex=null){
   addPoint('Maximum Sharpe / Tangency',maxSharpeExact||o.maxSharpe,'circle',17,'TANGENCY',nearReg?'left':'top',14);
   if(eq)addPoint('Equal Weight',eq,'rect',12,'EQUAL WT','bottom',11);
   if(cur)addPoint('Current Portfolio',cur,'triangle',16,'CURRENT','right',15);
-  if(rpExact)addPoint('Risk Parity',rpExact,'roundRect',14,'RISK PARITY','bottom',13);
-  if(blExact)addPoint('Black–Litterman',blExact,'pin',18,'BLACK–LITTERMAN','right',13);
+  if(rpExact)addPoint('Risk Parity — Common Model',rpExact,'roundRect',14,'RISK PARITY','bottom',13);
+  if(blExact)addPoint('Black–Litterman — Common Model',blExact,'pin',18,'BLACK–LITTERMAN','right',13);
   if(exactPoint && ex?.method==='max_sharpe' && Number(state.optimizationInputs.l2||0)>0)
     addPoint('Selected Regularized Max Sharpe',exactPoint,'pin',18,'REG. MAX SHARPE',nearReg?'right':'right',15);
   else if(exactPoint && !['max_sharpe','min_volatility','risk_parity','black_litterman'].includes(ex?.method))
@@ -954,7 +1063,7 @@ function frontierChart(id,o,ex=null){
     animation:false,
     tooltip:{trigger:'item',confine:true,backgroundColor:'rgba(8,14,22,.97)',borderWidth:1,
       formatter:p=>{const base=`<b>${p.seriesName}</b><br>Volatility ${(p.value[0]*100).toFixed(2)}%<br>Expected Return ${(p.value[1]*100).toFixed(2)}%${Number.isFinite(p.value[2])?`<br>Sharpe ${Number(p.value[2]).toFixed(2)}`:''}`;if(p.seriesName==='Maximum Sharpe / Tangency')return `${base}<br>Risk-free ${(rf*100).toFixed(2)}%<br><span style="opacity:.75">CML anchor • unregularized solution</span>`;if(p.seriesName==='Capital Market Line')return `${base}<br>Risk-free ${(rf*100).toFixed(2)}%`;return base;}},
-    legend:{top:0,left:10,right:10,type:'plain',itemGap:12,itemWidth:16,itemHeight:8,textStyle:{color:muted,fontSize:10},selected:{'Feasible Set':false,'Preview Frontier':true}},
+    legend:{top:0,left:10,right:10,type:'plain',itemGap:12,itemWidth:16,itemHeight:8,textStyle:{color:muted,fontSize:10},selected:{'Sampled Feasible Set':false,'Sampled Frontier Envelope':true}},
     grid:{left:78,right:30,top:68,bottom:64},
     xAxis:{type:'value',name:'ANNUALIZED VOLATILITY',nameLocation:'middle',nameGap:44,min:axisXMin,max:axisXMax,splitNumber:5,
       axisLabel:{color:muted,formatter:v=>`${(v*100).toFixed(1)}%`},axisLine:{show:true,lineStyle:{color:grid}},splitLine:{lineStyle:{color:grid,type:'dashed',opacity:.7}}},
@@ -1006,7 +1115,7 @@ function drawActiveCharts() {
   if (state.active === 'FACTOR LAB' && state.factorResults.some(x=>x.result)) { factorExposureHeatmap('#factorHeatmap', state.factorResults.filter(x=>x.result)); if(state.factorPortfolio) barChart('#factorPortfolio', Object.keys(state.factorPortfolio), [{name:'Beta',data:Object.values(state.factorPortfolio)}], false); }
   if (state.active === 'OPTIMIZATION' && state.optimization) {
     frontierChart('#frontierChart', state.optimization, state.optimizerExact);
-    if(state.optimizerExact){ strategyHeatmap('#strategyWeightHeatmap',state.optimization,state.optimizerExact,'weights'); strategyHeatmap('#strategyRiskHeatmap',state.optimization,state.optimizerExact,'risk'); }
+    if(state.optimizerExact){ strategyPathChart('#strategyNavChart',state.optimization,state.optimizerExact,'nav'); strategyPathChart('#strategyDrawdownChart',state.optimization,state.optimizerExact,'drawdown'); strategyHeatmap('#strategyWeightHeatmap',state.optimization,state.optimizerExact,'weights'); strategyHeatmap('#strategyRiskHeatmap',state.optimization,state.optimizerExact,'risk'); }
   }
 }
 

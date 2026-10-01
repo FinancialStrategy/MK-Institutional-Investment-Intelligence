@@ -517,7 +517,7 @@ function optimizationView(){
       <label>Lower Bound<input id="optLower" type="number" step="0.01" value="${state.optimizationInputs.lower}"></label>
       <label>Upper Bound<input id="optUpper" type="number" step="0.05" value="${state.optimizationInputs.upper}"></label>
       <label>L2 Gamma<input id="optL2" type="number" step="0.05" value="${state.optimizationInputs.l2}"></label>
-      <button id="runOptPreview">RUN REAL-DATA FRONTIER</button><button id="runPyOpt" class="secondary">RUN PYPORTFOLIOOPT</button>
+      <button id="runOptPreview">RUN REAL-DATA FRONTIER</button><button id="runPyOpt" class="exact-opt-btn">RUN PYPORTFOLIOOPT EXACT</button><span id="quantServiceStatus" class="quant-service-status">CHECKING QUANT ENGINE...</span>
     </div>
     <div class="portfolio-controls advanced-opt">
       <label>Black–Litterman Absolute Views<input id="blViews" value="${state.optimizationInputs.blViews||''}" placeholder="SPY:0.08,GLD:0.06"></label>
@@ -546,9 +546,32 @@ async function runOptPreview(){
 function priceMatrix(payloads){
   const maps=payloads.map(p=>new Map(p.rows.filter(r=>Number.isFinite(r.close)&&r.close>0).map(r=>[r.date,r.close])));const dates=[...maps[0].keys()].filter(d=>maps.every(m=>m.has(d))).sort();return {dates,prices:dates.map(d=>maps.map(m=>m.get(d)))};
 }
-async function runPyOpt(){
+async function checkQuantServiceStatus(){
+  const el=document.querySelector('#quantServiceStatus');
+  const btn=document.querySelector('#runPyOpt');
+  if(!el||!btn)return;
   try{
-    if(!state.optimizationPayloads)await runOptPreview(); const payloads=state.optimizationPayloads; if(!payloads)return;
+    const r=await fetch('/api/quant-health',{cache:'no-store'});
+    const raw=await r.text(); let p={}; try{p=JSON.parse(raw);}catch{}
+    if(r.ok&&p.ok){
+      el.textContent=`PYPORTFOLIOOPT ONLINE${p.version?` • v${p.version}`:''}`;
+      el.classList.add('online'); el.classList.remove('offline');
+      btn.disabled=false; btn.title='Run exact PyPortfolioOpt optimization on the Python quant service.';
+    }else{
+      el.textContent='QUANT ENGINE OFFLINE'; el.classList.add('offline'); el.classList.remove('online');
+      btn.disabled=false; btn.title='Quant service status check failed. Click to retry and see the exact error.';
+    }
+  }catch(e){
+    el.textContent='QUANT ENGINE STATUS UNKNOWN'; el.classList.add('offline'); el.classList.remove('online');
+    btn.disabled=false; btn.title='Status check failed. Click to retry.';
+  }
+}
+
+async function runPyOpt(){
+  const btn=document.querySelector('#runPyOpt'); const oldText=btn?.textContent;
+  try{
+    if(btn){btn.disabled=true;btn.textContent='RUNNING EXACT OPTIMIZER...';}
+    if(!state.optimizationPayloads)await runOptPreview(); const payloads=state.optimizationPayloads; if(!payloads)throw new Error('Real-data frontier could not be prepared. Run REAL-DATA FRONTIER first and retry.');
     state.optimizationInputs.factorMax=Object.fromEntries(['MKT','SMB','HML','RMW','CMA','MOM'].map(k=>[k,document.querySelector('#fc'+k)?.value??'']));
     const factorConstraints=[]; const constrained=Object.entries(state.optimizationInputs.factorMax).filter(([,v])=>v!==''&&Number.isFinite(Number(v)));
     if(constrained.length){
@@ -564,6 +587,7 @@ async function runPyOpt(){
     try{p=JSON.parse(raw);}catch{throw new Error(`Optimizer returned non-JSON (HTTP ${r.status}). ${raw.slice(0,120)}`);}
     if(!r.ok)throw new Error(p.error||p.detail||`PyPortfolioOpt failed (HTTP ${r.status})`); state.optimizerExact=p; renderView();
   }catch(e){alert(e.message);}
+  finally{const b=document.querySelector('#runPyOpt');if(b){b.disabled=false;b.textContent=oldText||'RUN PYPORTFOLIOOPT EXACT';}}
 }
 
 
@@ -655,7 +679,7 @@ function renderView() {
   if (state.active === 'UNIVERSE') bindUniverse();
   if (state.active === 'FACTOR LAB') document.querySelector('#runFactorLab')?.addEventListener('click', runFactorLab);
   if (state.active === 'PORTFOLIO') document.querySelector('#runPortfolio')?.addEventListener('click', runPortfolio);
-  if (state.active === 'OPTIMIZATION') { document.querySelector('#runOptPreview')?.addEventListener('click', runOptPreview); document.querySelector('#runPyOpt')?.addEventListener('click', runPyOpt); }
+  if (state.active === 'OPTIMIZATION') { document.querySelector('#runOptPreview')?.addEventListener('click', runOptPreview); document.querySelector('#runPyOpt')?.addEventListener('click', runPyOpt); checkQuantServiceStatus(); }
   if (state.active === 'RESEARCH' || state.active === 'THESIS') { document.querySelector('#loadResearch')?.addEventListener('click', loadResearch); document.querySelector('#runResearchHealth')?.addEventListener('click', runResearchHealth); document.querySelector('#saveThesis')?.addEventListener('click', saveThesis); }
   if (state.active === 'STRESS') {
     document.querySelector('#runStress')?.addEventListener('click', runStress);

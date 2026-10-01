@@ -137,3 +137,12 @@
 .frontier-chart{height:500px!important;min-height:500px}
 @media(max-width:1100px){.optimization-grid{grid-template-columns:1fr}.solution-panel{max-height:none}}
 @media(max-width:900px){.frontier-chart{height:420px!important;min-height:420px}}
+
+
+/* v0.10.8 exact optimizer control */
+.exact-opt-btn{background:#f28c28!important;color:#111!important;border:1px solid #f5a44b!important;box-shadow:0 0 0 1px rgba(242,140,40,.12),0 4px 14px rgba(242,140,40,.15);font-weight:750!important;letter-spacing:.02em;opacity:1!important}
+.exact-opt-btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.exact-opt-btn:disabled{opacity:.62!important;cursor:wait!important;transform:none;filter:none}
+.quant-service-status{align-self:center;font-size:9px;letter-spacing:.08em;border:1px solid var(--border);border-radius:999px;padding:6px 9px;color:var(--muted);white-space:nowrap}
+.quant-service-status.online{color:#55d68b;border-color:rgba(85,214,139,.38);background:rgba(85,214,139,.07)}
+.quant-service-status.offline{color:#ffb067;border-color:rgba(255,176,103,.35);background:rgba(255,176,103,.06)}

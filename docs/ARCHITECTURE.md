@@ -5,7 +5,7 @@
 | Public Web App | Netlify + Vite | Institutional UI, universe builder, charts, controls |
 | Netlify API | Netlify Functions | Yahoo market data, quote metadata, optimizer proxy, validation |
 | Browser Analytics | JavaScript | Returns, risk, backtest, walk-forward, frontier preview |
-| Quant Optimization | External Python service | PyPortfolioOpt exact constrained optimization |
+| Quant Optimization | External Python service | PortfolioOPTIM exact constrained optimization |
 | Market Data | Yahoo Finance initially | OHLCV and quote metadata |
 | Research Sources | staged connectors | Fundamentals, filings, catalysts, official releases |
 | Local Thesis Store | Browser localStorage v0.9 | Thesis/invalidation persistence until server store is introduced |

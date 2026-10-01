@@ -6,7 +6,7 @@
 | Universe Builder | Live | region/asset/group/factor filters | selected investable set |
 | Portfolio | Live | tickers/weights/benchmark | NAV, beta, TE, RC |
 | Optimization Preview | Live | selected universe | efficient envelope, min-vol, max-Sharpe preview |
-| PyPortfolioOpt | Backend-ready | price matrix + constraints | exact optimized weights/frontier |
+| PortfolioOPTIM | Backend-ready | price matrix + constraints | exact optimized weights/frontier |
 | Market Regime | Live | OHLCV | structural/tactical states |
 | Volatility | Live | returns | RV/EWMA/ratio |
 | Stress | Live | portfolio + shocks | stress P&L/risk |

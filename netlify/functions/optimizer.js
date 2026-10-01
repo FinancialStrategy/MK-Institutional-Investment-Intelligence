@@ -2,9 +2,9 @@ export default async (req) => {
   const jsonHeaders = {'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
   if (req.method !== 'POST') return new Response(JSON.stringify({error:'POST required'}), {status:405, headers:jsonHeaders});
 
-  const base = (process.env.PYPORTFOLIOOPT_API_URL || '').trim();
+  const base = (process.env.PORTFOLIOOPTIM_API_URL || '').trim();
   const secret = (process.env.QUANT_SERVICE_SECRET || '').trim();
-  if (!base) return new Response(JSON.stringify({error:'PyPortfolioOpt service is not configured. Set PYPORTFOLIOOPT_API_URL.'}), {status:503, headers:jsonHeaders});
+  if (!base) return new Response(JSON.stringify({error:'PortfolioOPTIM service is not configured. Set PORTFOLIOOPTIM_API_URL.'}), {status:503, headers:jsonHeaders});
   if (!secret) return new Response(JSON.stringify({error:'Quant service authentication is not configured. Set QUANT_SERVICE_SECRET in Netlify.'}), {status:503, headers:jsonHeaders});
 
   try {

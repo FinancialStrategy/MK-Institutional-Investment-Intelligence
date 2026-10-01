@@ -510,7 +510,7 @@ function bindUniverse(){
 function optimizationView(){
   const o=state.optimization, ex=state.optimizerExact, fm=state.optimizationInputs.factorMax||{};
   return `<div class="panel"><h3>PORTFOLIO OPTIMIZATION LAB</h3>
-    <p class="sub">Selected universe: ${state.selectedUniverse.join(', ')||'none'}. Preview uses real Yahoo price history. Exact constrained optimization is routed to the optional Python PyPortfolioOpt service. Factor-neutral bounds require Factor Lab loadings.</p>
+    <p class="sub">Selected universe: ${state.selectedUniverse.join(', ')||'none'}. Preview uses real Yahoo price history. Exact constrained optimization is routed to the optional Python PortfolioOPTIM service. Factor-neutral bounds require Factor Lab loadings.</p>
     <div class="portfolio-controls">
       <label>Risk-Free %<input id="optRf" type="number" step="0.1" value="${state.optimizationInputs.rf*100}"></label>
       <label>Optimization Strategy<select id="optMethod">${[['max_sharpe','Maximum Sharpe / Tangency'],['min_volatility','Minimum Volatility'],['efficient_return','Target Return / Minimum Risk'],['efficient_risk','Target Volatility / Maximum Return'],['max_quadratic_utility','Maximum Quadratic Utility'],['risk_parity','Risk Parity / ERC'],['hrp','Hierarchical Risk Parity'],['black_litterman','Black–Litterman'],['cla_min_volatility','CLA Minimum Volatility'],['cla_max_sharpe','CLA Maximum Sharpe'],['min_semivariance','Minimum Semivariance'],['min_cvar','Minimum CVaR'],['min_cdar','Minimum CDaR']].map(([v,n])=>`<option value="${v}" ${v===state.optimizationInputs.method?'selected':''}>${n}</option>`).join('')}</select></label>
@@ -520,7 +520,7 @@ function optimizationView(){
       <label class="strategy-param target-return-param">Target Return %<input id="optTargetReturn" type="number" step="0.1" value="${(state.optimizationInputs.targetReturn??0.12)*100}"></label>
       <label class="strategy-param target-vol-param">Target Volatility %<input id="optTargetVol" type="number" step="0.1" value="${(state.optimizationInputs.targetVolatility??0.15)*100}"></label>
       <label class="strategy-param risk-aversion-param">Risk Aversion<input id="optRiskAversion" type="number" min="0.01" step="0.25" value="${state.optimizationInputs.riskAversion??1}"></label>
-      <button id="runOptPreview">RUN REAL-DATA FRONTIER</button><button id="runPyOpt" class="exact-opt-btn">RUN PYPORTFOLIOOPT EXACT</button><span id="quantServiceStatus" class="quant-service-status">CHECKING QUANT ENGINE...</span>
+      <button id="runOptPreview">RUN REAL-DATA FRONTIER</button><button id="runPyOpt" class="exact-opt-btn">RUN PORTFOLIOOPTIM EXACT</button><span id="quantServiceStatus" class="quant-service-status">CHECKING QUANT ENGINE...</span>
     </div>
     <div id="strategyHelp" class="strategy-help"></div><div class="portfolio-controls advanced-opt">
       <label>Black–Litterman Absolute Views<input id="blViews" value="${state.optimizationInputs.blViews||''}" placeholder="SPY:0.08,GLD:0.06"></label>
@@ -532,9 +532,9 @@ function optimizationView(){
     <p class="sub">Example: HML = 0.10 constrains portfolio HML loading to −0.10 ≤ βHML ≤ +0.10. Leave blank for no factor constraint. HRP/CLA do not accept these linear constraints in this service.</p>
   </div>
     ${o?`<div class="grid kpis four" style="margin-top:12px">${[['OBS',o.observations],['MIN VOL',fmtPct(o.minVol.vol)],['MIN VOL RETURN',fmtPct(o.minVol.ret)],['MAX SHARPE',fmtNum(o.maxSharpe.sharpe,2)],['MS RETURN',fmtPct(o.maxSharpe.ret)],['MS VOL',fmtPct(o.maxSharpe.vol)]].map(([a,b])=>`<div class="kpi"><div class="label">${a}</div><div class="num smallnum">${b}</div></div>`).join('')}</div>
-    <div class="grid optimization-grid"><div class="panel frontier-panel"><div class="frontier-head"><div><h3>${ex?.frontier?.length?'PYPORTFOLIOOPT EFFICIENT FRONTIER':'EFFICIENT FRONTIER — PREVIEW'}</h3><p class="sub">${ex?.frontier?.length?'Exact constrained frontier is primary; preview is retained as a diagnostic reference.':'Run PyPortfolioOpt to overlay the exact constrained frontier.'}</p></div><span class="engine-badge ${ex?.frontier?.length?'live':'preview'}">${ex?.frontier?.length?'EXACT LIVE':'PREVIEW'}</span></div><div id="frontierChart" class="chart frontier-chart"></div></div><div class="panel solution-panel"><h3>${ex?'PORTFOLIO SOLUTIONS':'PREVIEW PORTFOLIOS'}</h3>${ex?.benchmarks?.min_volatility?weightsTable('Minimum Volatility',state.selectedUniverse.map(t=>ex.benchmarks.min_volatility.weights?.[t]||0),0.001):weightsTable('Minimum Volatility',o.minVol.w,0.001)}${ex?.benchmarks?.max_sharpe?weightsTable('Maximum Sharpe / Tangency',state.selectedUniverse.map(t=>ex.benchmarks.max_sharpe.weights?.[t]||0),0.001):weightsTable('Maximum Sharpe',o.maxSharpe.w,0.001)}${ex?.benchmarks?.risk_parity?weightsTable('Risk Parity',state.selectedUniverse.map(t=>ex.benchmarks.risk_parity.weights?.[t]||0),0.001):''}${ex?.benchmarks?.black_litterman?weightsTable('Black–Litterman',state.selectedUniverse.map(t=>ex.benchmarks.black_litterman.weights?.[t]||0),0.001):''}${ex?weightsTable(`Selected — ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,state.selectedUniverse.map(t=>ex.weights?.[t]||0),0.001):''}</div></div>`:''}
+    <div class="grid optimization-grid"><div class="panel frontier-panel"><div class="frontier-head"><div><h3>${ex?.frontier?.length?'PORTFOLIOOPTIM EFFICIENT FRONTIER':'EFFICIENT FRONTIER — PREVIEW'}</h3><p class="sub">${ex?.frontier?.length?'Exact constrained frontier is primary; preview is retained as a diagnostic reference.':'Run PortfolioOPTIM to overlay the exact constrained frontier.'}</p></div><span class="engine-badge ${ex?.frontier?.length?'live':'preview'}">${ex?.frontier?.length?'EXACT LIVE':'PREVIEW'}</span></div><div id="frontierChart" class="chart frontier-chart"></div></div><div class="panel solution-panel"><h3>${ex?'PORTFOLIO SOLUTIONS':'PREVIEW PORTFOLIOS'}</h3>${ex?.benchmarks?.min_volatility?weightsTable('Minimum Volatility',state.selectedUniverse.map(t=>ex.benchmarks.min_volatility.weights?.[t]||0),0.001):weightsTable('Minimum Volatility',o.minVol.w,0.001)}${ex?.benchmarks?.max_sharpe?weightsTable('Maximum Sharpe / Tangency',state.selectedUniverse.map(t=>ex.benchmarks.max_sharpe.weights?.[t]||0),0.001):weightsTable('Maximum Sharpe',o.maxSharpe.w,0.001)}${ex?.benchmarks?.risk_parity?weightsTable('Risk Parity',state.selectedUniverse.map(t=>ex.benchmarks.risk_parity.weights?.[t]||0),0.001):''}${ex?.benchmarks?.black_litterman?weightsTable('Black–Litterman',state.selectedUniverse.map(t=>ex.benchmarks.black_litterman.weights?.[t]||0),0.001):''}${ex?weightsTable(`Selected — ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,state.selectedUniverse.map(t=>ex.weights?.[t]||0),0.001):''}</div></div>`:''}
     ${ex?`<div class="panel strategy-comparison-panel" style="margin-top:12px"><div class="frontier-head"><div><h3>PORTFOLIO STRATEGY COMPARISON LAB</h3><p class="sub">Apples-to-apples evaluation: every portfolio is re-scored on the same selected universe, dates, historical expected-return vector, covariance matrix, risk-free rate and common constraints. Black–Litterman may use posterior views for optimization, but the comparison metrics below are recomputed on the common market-data model.</p></div><span class="engine-badge live">COMMON BASIS</span></div>${strategyComparisonTable(o,ex)}<div class="grid two strategy-heat-grid" style="margin-top:12px"><div><h4>CAPITAL WEIGHTS HEATMAP</h4><div id="strategyWeightHeatmap" class="chart strategy-heatmap"></div></div><div><h4>RISK CONTRIBUTION HEATMAP</h4><div id="strategyRiskHeatmap" class="chart strategy-heatmap"></div></div></div><p class="sub comparison-note">Return/volatility/Sharpe are common-basis diagnostics, not a claim of out-of-sample superiority. For a genuine performance comparison, use the Walk-Forward module with identical estimation windows, rebalance cadence and transaction-cost assumptions.</p></div>`:''}
-    ${ex?`<div class="grid two" style="margin-top:12px"><div class="panel"><h3>PYPORTFOLIOOPT — ${ex.method}</h3><p class="sub">Engine: ${ex.engine} • ${ex.observations} complete observations • ${ex.data_start} → ${ex.data_end}</p>${ex.factor_exposure?`<h4>OPTIMIZED FACTOR EXPOSURE</h4><table><tbody>${Object.entries(ex.factor_exposure).map(([k,v])=>`<tr><td>${k}</td><td>${fmtNum(v,3)}</td></tr>`).join('')}</tbody></table>`:''}<pre class="jsonbox">${JSON.stringify(ex.performance,null,2)}</pre></div><div class="panel"><h3>CONSTRAINT DIAGNOSTICS</h3>${constraintDiagnosticsTable(ex.constraint_diagnostics)}<p class="sub">Binding constraints explain why optimized weights may sit exactly on configured caps/floors.</p></div></div>`:''}`;
+    ${ex?`<div class="grid two" style="margin-top:12px"><div class="panel"><h3>PORTFOLIOOPTIM — ${ex.method}</h3><p class="sub">Engine: ${ex.engine} • ${ex.observations} complete observations • ${ex.data_start} → ${ex.data_end}</p>${ex.factor_exposure?`<h4>OPTIMIZED FACTOR EXPOSURE</h4><table><tbody>${Object.entries(ex.factor_exposure).map(([k,v])=>`<tr><td>${k}</td><td>${fmtNum(v,3)}</td></tr>`).join('')}</tbody></table>`:''}<pre class="jsonbox">${JSON.stringify(ex.performance,null,2)}</pre></div><div class="panel"><h3>CONSTRAINT DIAGNOSTICS</h3>${constraintDiagnosticsTable(ex.constraint_diagnostics)}<p class="sub">Binding constraints explain why optimized weights may sit exactly on configured caps/floors.</p></div></div>`:''}`;
 }
 
 function strategyComparisonRows(o,ex){
@@ -574,7 +574,7 @@ function riskContributionShares(weights,o){
 }
 function strategyComparisonTable(o,ex){
   const rows=strategyComparisonRows(o,ex);
-  if(!rows.length)return '<p class="sub">Run PyPortfolioOpt Exact to populate the strategy comparison.</p>';
+  if(!rows.length)return '<p class="sub">Run PortfolioOPTIM Exact to populate the strategy comparison.</p>';
   return `<div class="strategy-compare-wrap"><table class="strategy-compare"><thead><tr><th>Strategy</th><th>Return</th><th>Volatility</th><th>Sharpe</th><th>HHI</th><th>Effective N</th><th>Max Weight</th><th>Turnover vs Current</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${r.label}</b></td><td>${fmtPct(r.ret)}</td><td>${fmtPct(r.vol)}</td><td>${fmtNum(r.sharpe,2)}</td><td>${fmtNum(r.hhi,3)}</td><td>${fmtNum(r.effectiveN,2)}</td><td>${fmtPct(r.maxWeight)}</td><td>${Number.isFinite(r.turnover)?fmtPct(r.turnover):'N/A'}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function strategyHeatmap(id,o,ex,mode='weights'){
@@ -613,9 +613,9 @@ async function checkQuantServiceStatus(){
     const r=await fetch('/api/quant-health',{cache:'no-store'});
     const raw=await r.text(); let p={}; try{p=JSON.parse(raw);}catch{}
     if(r.ok&&p.ok){
-      el.textContent=`PYPORTFOLIOOPT ONLINE${p.version?` • v${p.version}`:''}`;
+      el.textContent=`PORTFOLIOOPTIM ONLINE${p.version?` • v${p.version}`:''}`;
       el.classList.add('online'); el.classList.remove('offline');
-      btn.disabled=false; btn.title='Run exact PyPortfolioOpt optimization on the Python quant service.';
+      btn.disabled=false; btn.title='Run exact PortfolioOPTIM optimization on the Python quant service.';
     }else{
       el.textContent='QUANT ENGINE OFFLINE'; el.classList.add('offline'); el.classList.remove('online');
       btn.disabled=false; btn.title='Quant service status check failed. Click to retry and see the exact error.';
@@ -644,9 +644,9 @@ async function runPyOpt(){
     const r=await fetch('/api/optimizer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     const raw=await r.text(); let p;
     try{p=JSON.parse(raw);}catch{throw new Error(`Optimizer returned non-JSON (HTTP ${r.status}). ${raw.slice(0,120)}`);}
-    if(!r.ok)throw new Error(p.error||p.detail||`PyPortfolioOpt failed (HTTP ${r.status})`); state.optimizerExact=p; renderView();
+    if(!r.ok)throw new Error(p.error||p.detail||`PortfolioOPTIM failed (HTTP ${r.status})`); state.optimizerExact=p; renderView();
   }catch(e){alert(e.message);}
-  finally{const b=document.querySelector('#runPyOpt');if(b){b.disabled=false;b.textContent=oldText||'RUN PYPORTFOLIOOPT EXACT';}}
+  finally{const b=document.querySelector('#runPyOpt');if(b){b.disabled=false;b.textContent=oldText||'RUN PORTFOLIOOPTIM EXACT';}}
 }
 
 
@@ -896,7 +896,7 @@ function frontierChart(id,o,ex=null){
     {name:'Feasible Set',type:'scatter',symbolSize:2.6,data:cloud,itemStyle:{opacity:.075},emphasis:{itemStyle:{opacity:.5}},z:1},
     {name:'Preview Frontier',type:'line',showSymbol:false,smooth:.18,data:ef,lineStyle:{width:1.1,type:'dashed',opacity:hasExact?.28:.9},z:3}
   ];
-  if(hasExact) series.push({name:'PyPortfolioOpt Exact Frontier',type:'line',showSymbol:false,smooth:false,connectNulls:false,lineStyle:{width:3.6,opacity:1},data:exact,z:9});
+  if(hasExact) series.push({name:'PortfolioOPTIM Exact Frontier',type:'line',showSymbol:false,smooth:false,connectNulls:false,lineStyle:{width:3.6,opacity:1},data:exact,z:9});
 
   const addPoint=(name,p,symbol,size,label,pos='top',z=12)=>{
     if(!p)return;

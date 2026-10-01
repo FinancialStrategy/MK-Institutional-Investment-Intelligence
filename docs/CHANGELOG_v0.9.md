@@ -13,7 +13,7 @@
 - Minimum 126 common daily observations; no synthetic filling.
 
 ## Optimization
-- Added factor exposure constraints to PyPortfolioOpt request schema.
+- Added factor exposure constraints to PortfolioOPTIM request schema.
 - Supports bounded exposure for MKT, SMB, HML, RMW, CMA and MOM in EfficientFrontier, Semivariance, CVaR and CDaR paths.
 - HRP and CLA explicitly reject unsupported factor constraints.
 - Exact constrained frontier can overlay the browser preview frontier.

@@ -2,9 +2,9 @@
 
 Adds apples-to-apples Maximum Sharpe, Minimum Volatility, Risk Parity, Black–Litterman, Equal Weight and Current Portfolio diagnostics on a common risk/return basis, plus capital-weight and risk-contribution heatmaps.
 
-# MK Institutional Investment Intelligence — v0.10.7
+# MK Institutional Investment Intelligence — v0.11.2
 
-Netlify frontend + secure optional Python PyPortfolioOpt backend. v0.10.7 hardens the exact Efficient Frontier, adds CML/current/equal-weight/exact markers, and supports secured deployment on Railway or Render.
+Netlify frontend + secure optional Python PortfolioOPTIM backend. v0.11.2 hardens the exact Efficient Frontier, adds CML/current/equal-weight/exact markers, and supports secured deployment on Railway or Render.
 
 See `quant_service/DEPLOY.md`.
 
@@ -16,7 +16,7 @@ Netlify-first institutional research, factor analytics, portfolio risk and optim
 - Fixed Research / Load Valuation Snapshot failure with a multi-endpoint Yahoo connector and chart-metadata hard fallback.
 - Fama–French 5 Factor + Momentum daily regression using Kenneth R. French factor files and validated Yahoo asset returns.
 - Factor exposure heatmap, alpha/R² diagnostics and equal-weight universe factor exposure.
-- Factor-neutral / factor-bounded PyPortfolioOpt constraints.
+- Factor-neutral / factor-bounded PortfolioOPTIM constraints.
 - Deep fundamentals connector via EODHD (revenue, margins, FCF, ROE, ROIC, net debt).
 - Valuation snapshot with partial-data status instead of module failure.
 - Sourced earnings catalyst connector via EODHD when configured.
@@ -25,7 +25,7 @@ Netlify-first institutional research, factor analytics, portfolio risk and optim
 
 ## Netlify environment variables
 - `EODHD_API_TOKEN` — enables deep company fundamentals and sourced earnings catalysts.
-- `PYPORTFOLIOOPT_API_URL` — URL of the optional Python quant service for exact PyPortfolioOpt optimization.
+- `PORTFOLIOOPTIM_API_URL` — URL of the optional Python quant service for exact PortfolioOPTIM optimization.
 
 The Yahoo valuation layer does not require an API key. If Yahoo quote/quoteSummary metadata is unavailable, the connector falls back to Yahoo chart metadata and returns unavailable fields as `N/A` rather than crashing the Research screen.
 
@@ -38,7 +38,7 @@ npm install
 npm run build
 ```
 
-The public product remains Netlify-first. Exact PyPortfolioOpt calculations are proxied by Netlify to the optional Python quant service; browser clients never need the service URL.
+The public product remains Netlify-first. Exact PortfolioOPTIM calculations are proxied by Netlify to the optional Python quant service; browser clients never need the service URL.
 
 
 ## v0.10.3 Dual UI + Portfolio Construction
@@ -47,7 +47,7 @@ The public product remains Netlify-first. Exact PyPortfolioOpt calculations are 
 - **MK LabGEN Executive UI** is a separate presentation layer using thin Arial/Arial Narrow sans-serif typography, orange/white institutional branding and a small Turkish flag beside the MK mark.
 - Both interface modes support **Dark** and **Light** themes independently. UI mode and theme persist in browser localStorage.
 - All analytics and research modules share the same state/calculation layer; changing UI mode never changes portfolio, factor, fundamental, thesis or risk results.
-- PyPortfolioOpt service now exposes **Black-Litterman** and **Risk Parity / Equal Risk Contribution** in addition to existing optimization methods.
+- PortfolioOPTIM service now exposes **Black-Litterman** and **Risk Parity / Equal Risk Contribution** in addition to existing optimization methods.
 - Black-Litterman accepts optional annual absolute return views (`SPY:0.08,GLD:0.06`) and explicitly reports that the current prior is historical mean returns.
 - Risk Parity accepts optional custom risk budgets and defaults to equal risk budgets. Existing factor exposure bounds remain available.
 
@@ -73,8 +73,8 @@ Yahoo metadata endpoints are authenticated server-side with a cookie/crumb hands
 - `/api/research-health?ticker=AAPL` reveals connector status and whether the server-side token is visible, but never returns the token.
 
 
-## v0.10.7 Frontier Presentation Upgrade
-- Exact PyPortfolioOpt frontier promoted to the primary chart when available.
+## v0.11.2 Frontier Presentation Upgrade
+- Exact PortfolioOPTIM frontier promoted to the primary chart when available.
 - Exact Min Vol, Tangency/Max Sharpe, Risk Parity, Black-Litterman, Equal Weight and Current Portfolio markers.
 - Capital Market Line uses the exact Max Sharpe portfolio and shows the risk-free intercept.
 - Constraint diagnostics expose binding asset/factor constraints.

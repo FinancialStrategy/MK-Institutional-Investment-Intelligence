@@ -7,7 +7,7 @@
 - v0.5 Liquidity — COMPLETE
 - v0.6 Backtest Lab — COMPLETE
 - v0.7 Walk-Forward / OOS — COMPLETE
-- v0.8 Universe Builder + Efficient Frontier + PyPortfolioOpt bridge — COMPLETE
+- v0.8 Universe Builder + Efficient Frontier + PortfolioOPTIM bridge — COMPLETE
 - v0.9 Factor & Research Engine — COMPLETE
   - Fama–French 5F + Momentum regression
   - Factor exposure heatmap

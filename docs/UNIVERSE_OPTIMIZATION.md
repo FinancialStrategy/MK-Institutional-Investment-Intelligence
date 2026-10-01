@@ -25,8 +25,8 @@ The factor taxonomy is not itself a measured factor exposure. A later factor-reg
 ### Browser preview
 Real Yahoo price data -> common-date log returns -> annualized expected returns / covariance -> candidate long-only portfolios -> approximate efficient envelope.
 
-### Exact PyPortfolioOpt service
-The public site remains on Netlify. Netlify proxies to an optional Python quant service through `PYPORTFOLIOOPT_API_URL`.
+### Exact PortfolioOPTIM service
+The public site remains on Netlify. Netlify proxies to an optional Python quant service through `PORTFOLIOOPTIM_API_URL`.
 
 Supported methods:
 - Max Sharpe

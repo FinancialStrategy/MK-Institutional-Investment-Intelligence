@@ -1,6 +1,6 @@
-# MK Institutional Investment Intelligence — v0.10.5
+# MK Institutional Investment Intelligence — v0.10.7
 
-Netlify frontend + secure optional Python PyPortfolioOpt backend. v0.10.5 hardens the exact Efficient Frontier, adds CML/current/equal-weight/exact markers, and supports secured deployment on Railway or Render.
+Netlify frontend + secure optional Python PyPortfolioOpt backend. v0.10.7 hardens the exact Efficient Frontier, adds CML/current/equal-weight/exact markers, and supports secured deployment on Railway or Render.
 
 See `quant_service/DEPLOY.md`.
 
@@ -67,3 +67,11 @@ Yahoo metadata endpoints are authenticated server-side with a cookie/crumb hands
 - EODHD: primary deep fundamentals, valuation fields and catalysts.
 - Both Classic v0.9 and MK LabGEN render the same merged research state.
 - `/api/research-health?ticker=AAPL` reveals connector status and whether the server-side token is visible, but never returns the token.
+
+
+## v0.10.7 Frontier Presentation Upgrade
+- Exact PyPortfolioOpt frontier promoted to the primary chart when available.
+- Exact Min Vol, Tangency/Max Sharpe, Risk Parity, Black-Litterman, Equal Weight and Current Portfolio markers.
+- Capital Market Line uses the exact Max Sharpe portfolio and shows the risk-free intercept.
+- Constraint diagnostics expose binding asset/factor constraints.
+- Portfolio tables suppress de minimis weights below 0.10% by default.

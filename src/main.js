@@ -529,10 +529,11 @@ function optimizationView(){
     <p class="sub">Example: HML = 0.10 constrains portfolio HML loading to −0.10 ≤ βHML ≤ +0.10. Leave blank for no factor constraint. HRP/CLA do not accept these linear constraints in this service.</p>
   </div>
     ${o?`<div class="grid kpis four" style="margin-top:12px">${[['OBS',o.observations],['MIN VOL',fmtPct(o.minVol.vol)],['MIN VOL RETURN',fmtPct(o.minVol.ret)],['MAX SHARPE',fmtNum(o.maxSharpe.sharpe,2)],['MS RETURN',fmtPct(o.maxSharpe.ret)],['MS VOL',fmtPct(o.maxSharpe.vol)]].map(([a,b])=>`<div class="kpi"><div class="label">${a}</div><div class="num smallnum">${b}</div></div>`).join('')}</div>
-    <div class="grid two"><div class="panel"><h3>EFFICIENT FRONTIER — PREVIEW + EXACT</h3><div id="frontierChart" class="chart frontier-chart"></div></div><div class="panel"><h3>PREVIEW PORTFOLIOS</h3>${weightsTable('Minimum Volatility',o.minVol.w)}${weightsTable('Maximum Sharpe',o.maxSharpe.w)}</div></div>`:''}
-    ${ex?`<div class="panel" style="margin-top:12px"><h3>PYPORTFOLIOOPT — ${ex.method}</h3><p class="sub">Engine: ${ex.engine} • ${ex.observations} complete observations • ${ex.data_start} → ${ex.data_end}</p>${weightsTable('Exact Optimized Weights', state.selectedUniverse.map(t=>ex.weights?.[t]||0))}${ex.factor_exposure?`<h4>OPTIMIZED FACTOR EXPOSURE</h4><table><tbody>${Object.entries(ex.factor_exposure).map(([k,v])=>`<tr><td>${k}</td><td>${fmtNum(v,3)}</td></tr>`).join('')}</tbody></table>`:''}<pre class="jsonbox">${JSON.stringify(ex.performance,null,2)}</pre></div>`:''}`;
+    <div class="grid optimization-grid"><div class="panel frontier-panel"><div class="frontier-head"><div><h3>${ex?.frontier?.length?'PYPORTFOLIOOPT EFFICIENT FRONTIER':'EFFICIENT FRONTIER — PREVIEW'}</h3><p class="sub">${ex?.frontier?.length?'Exact constrained frontier is primary; preview is retained as a diagnostic reference.':'Run PyPortfolioOpt to overlay the exact constrained frontier.'}</p></div><span class="engine-badge ${ex?.frontier?.length?'live':'preview'}">${ex?.frontier?.length?'EXACT LIVE':'PREVIEW'}</span></div><div id="frontierChart" class="chart frontier-chart"></div></div><div class="panel solution-panel"><h3>${ex?'PORTFOLIO SOLUTIONS':'PREVIEW PORTFOLIOS'}</h3>${ex?.benchmarks?.min_volatility?weightsTable('Minimum Volatility',state.selectedUniverse.map(t=>ex.benchmarks.min_volatility.weights?.[t]||0),0.001):weightsTable('Minimum Volatility',o.minVol.w,0.001)}${ex?.benchmarks?.max_sharpe?weightsTable('Maximum Sharpe / Tangency',state.selectedUniverse.map(t=>ex.benchmarks.max_sharpe.weights?.[t]||0),0.001):weightsTable('Maximum Sharpe',o.maxSharpe.w,0.001)}${ex?.benchmarks?.risk_parity?weightsTable('Risk Parity',state.selectedUniverse.map(t=>ex.benchmarks.risk_parity.weights?.[t]||0),0.001):''}${ex?.benchmarks?.black_litterman?weightsTable('Black–Litterman',state.selectedUniverse.map(t=>ex.benchmarks.black_litterman.weights?.[t]||0),0.001):''}${ex?weightsTable(`Selected — ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,state.selectedUniverse.map(t=>ex.weights?.[t]||0),0.001):''}</div></div>`:''}
+    ${ex?`<div class="grid two" style="margin-top:12px"><div class="panel"><h3>PYPORTFOLIOOPT — ${ex.method}</h3><p class="sub">Engine: ${ex.engine} • ${ex.observations} complete observations • ${ex.data_start} → ${ex.data_end}</p>${ex.factor_exposure?`<h4>OPTIMIZED FACTOR EXPOSURE</h4><table><tbody>${Object.entries(ex.factor_exposure).map(([k,v])=>`<tr><td>${k}</td><td>${fmtNum(v,3)}</td></tr>`).join('')}</tbody></table>`:''}<pre class="jsonbox">${JSON.stringify(ex.performance,null,2)}</pre></div><div class="panel"><h3>CONSTRAINT DIAGNOSTICS</h3>${constraintDiagnosticsTable(ex.constraint_diagnostics)}<p class="sub">Binding constraints explain why optimized weights may sit exactly on configured caps/floors.</p></div></div>`:''}`;
 }
-function weightsTable(title,w){if(!w)return '';return `<h4>${title}</h4><table><thead><tr><th>Asset</th><th>Weight</th></tr></thead><tbody>${state.selectedUniverse.map((t,i)=>`<tr><td>${t}</td><td>${fmtPct(w[i])}</td></tr>`).join('')}</tbody></table>`;}
+function weightsTable(title,w,minDisplay=0){if(!w)return '';const rows=state.selectedUniverse.map((t,i)=>({t,w:Number(w[i]||0)})).filter(x=>Math.abs(x.w)>=minDisplay);return `<h4>${title}</h4><table><thead><tr><th>Asset</th><th>Weight</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.t}</td><td>${fmtPct(x.w)}</td></tr>`).join('')||'<tr><td colspan="2">All weights below display threshold.</td></tr>'}</tbody></table>`;}
+function constraintDiagnosticsTable(d){if(!d)return '<p class="sub">No diagnostics returned.</p>';const rows=[['Solver status',d.solver_status||'optimal'],['Lower bound',Number.isFinite(d.lower_bound)?fmtPct(d.lower_bound):'N/A'],['Upper bound',Number.isFinite(d.upper_bound)?fmtPct(d.upper_bound):'N/A'],['Binding lower',Array.isArray(d.binding_lower)&&d.binding_lower.length?d.binding_lower.join(', '):'None'],['Binding upper',Array.isArray(d.binding_upper)&&d.binding_upper.length?d.binding_upper.join(', '):'None']];return `<table><tbody>${rows.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</tbody></table>${Array.isArray(d.factor_constraints)&&d.factor_constraints.length?`<h4>FACTOR BOUNDS</h4><table><thead><tr><th>Factor</th><th>Exposure</th><th>Range</th><th>Binding</th></tr></thead><tbody>${d.factor_constraints.map(x=>`<tr><td>${x.factor}</td><td>${fmtNum(x.exposure,3)}</td><td>${fmtNum(x.lower,3)} to ${fmtNum(x.upper,3)}</td><td>${x.binding?'YES':'NO'}</td></tr>`).join('')}</tbody></table>`:''}`;}
 async function fetchUniversePayloads(){
   const tickers=state.selectedUniverse.slice(0,36);if(tickers.length<2)throw new Error('Select at least two assets in Universe.');
   const assets=[];const errors=[];
@@ -558,7 +559,10 @@ async function runPyOpt(){
     const parsePairs=(txt)=>Object.fromEntries(String(txt||'').split(',').map(x=>x.trim()).filter(Boolean).map(x=>{const [k,v]=x.split(':');return [k?.trim(),Number(v)];}).filter(([k,v])=>k&&Number.isFinite(v)));
     state.optimizationInputs.blViews=document.querySelector('#blViews')?.value||''; state.optimizationInputs.riskBudgets=document.querySelector('#riskBudgets')?.value||'';
     const pm=priceMatrix(payloads); const body={tickers:state.selectedUniverse,dates:pm.dates,prices:pm.prices,method:document.querySelector('#optMethod').value,risk_free_rate:Number(document.querySelector('#optRf').value)/100,lower_bound:Number(document.querySelector('#optLower').value),upper_bound:Number(document.querySelector('#optUpper').value),l2_gamma:Number(document.querySelector('#optL2').value),factor_constraints:factorConstraints,absolute_views:parsePairs(state.optimizationInputs.blViews),risk_budgets:parsePairs(state.optimizationInputs.riskBudgets)};
-    const r=await fetch('/api/optimizer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}); const p=await r.json(); if(!r.ok)throw new Error(p.error||p.detail||'PyPortfolioOpt failed'); state.optimizerExact=p; renderView();
+    const r=await fetch('/api/optimizer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    const raw=await r.text(); let p;
+    try{p=JSON.parse(raw);}catch{throw new Error(`Optimizer returned non-JSON (HTTP ${r.status}). ${raw.slice(0,120)}`);}
+    if(!r.ok)throw new Error(p.error||p.detail||`PyPortfolioOpt failed (HTTP ${r.status})`); state.optimizerExact=p; renderView();
   }catch(e){alert(e.message);}
 }
 
@@ -726,46 +730,95 @@ function portfolioPointFromWeights(w,o){
   const vol=Math.sqrt(Math.max(v,0)); return {vol,ret:er,sharpe:vol>0?(er-(state.optimizationInputs.rf||0))/vol:NaN};
 }
 function frontierChart(id,o,ex=null){
-  const el=document.querySelector(id);if(!el)return;const {muted,grid}=baseAxis();const c=echarts.init(el);
+  const el=document.querySelector(id); if(!el)return;
+  const {muted,grid}=baseAxis(); const c=echarts.init(el);
   const finite=p=>Number.isFinite(p?.vol)&&Number.isFinite(p?.ret);
   const pts=(o.points||[]).filter(finite);
-  // Thin the cloud for legibility without changing the frontier calculation.
-  const step=Math.max(1,Math.ceil(pts.length/900));
+  const step=Math.max(1,Math.ceil(pts.length/360));
   const cloud=pts.filter((_,i)=>i%step===0).map(p=>[p.vol,p.ret,p.sharpe]);
   const ef=(o.frontier||[]).filter(finite).map(p=>[p.vol,p.ret,p.sharpe]);
-  const exact=(ex?.frontier||[]).filter(p=>Number.isFinite(p?.volatility)&&Number.isFinite(p?.return)).map(p=>[p.volatility,p.return,p.sharpe]);
+  const exact=(ex?.frontier||[])
+    .filter(p=>Number.isFinite(p?.volatility)&&Number.isFinite(p?.return))
+    .sort((a,b)=>a.volatility-b.volatility)
+    .map(p=>[p.volatility,p.return,p.sharpe]);
+
   const eqW=Array(state.selectedUniverse.length).fill(1/Math.max(1,state.selectedUniverse.length));
   const eq=portfolioPointFromWeights(eqW,o);
   const cur=portfolioPointFromWeights(selectedCurrentWeights(),o);
   const exactPoint=(ex?.performance&&Number.isFinite(ex.performance.volatility)&&Number.isFinite(ex.performance.expected_return))
     ? {vol:ex.performance.volatility,ret:ex.performance.expected_return,sharpe:ex.performance.sharpe}
     : null;
-  const tangent=exactPoint || o.maxSharpe;
+  const bench=ex?.benchmarks||{};
+  const pickPerf=x=>x?.performance&&Number.isFinite(x.performance.volatility)&&Number.isFinite(x.performance.expected_return)
+    ? {vol:x.performance.volatility,ret:x.performance.expected_return,sharpe:x.performance.sharpe}:null;
+  const minVolExact=pickPerf(bench.min_volatility);
+  const maxSharpeExact=pickPerf(bench.max_sharpe);
+  const rpExact=pickPerf(bench.risk_parity);
+  const blExact=pickPerf(bench.black_litterman);
+  const tangent=maxSharpeExact||o.maxSharpe;
   const rf=Number(state.optimizationInputs.rf||0);
-  const cml=tangent&&Number.isFinite(tangent.vol)&&tangent.vol>0?[[0,rf],[tangent.vol*1.18,rf+(tangent.ret-rf)*1.18]]:[];
-  const extra=[eq,cur,exactPoint].filter(Boolean).map(p=>[p.vol,p.ret,p.sharpe]);
-  const all=[...cloud,...ef,...exact,...extra,[o.minVol.vol,o.minVol.ret],[o.maxSharpe.vol,o.maxSharpe.ret],...cml].filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
-  const xs=all.map(p=>p[0]),ys=all.map(p=>p[1]);
-  const xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
-  const xpad=Math.max((xmax-xmin)*.07,.0025),ypad=Math.max((ymax-ymin)*.08,.004);
+
+  // Axis scaling is intentionally based on investable portfolios only.
+  // The risk-free intercept must not stretch the vertical scale.
+  const markers=[eq,cur,exactPoint,minVolExact,maxSharpeExact,rpExact,blExact].filter(Boolean);
+  const investable=[...cloud,...ef,...exact,...markers.map(p=>[p.vol,p.ret,p.sharpe])]
+    .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+  const xs=investable.map(p=>p[0]), ys=investable.map(p=>p[1]);
+  let xmin=Math.min(...xs), xmax=Math.max(...xs), ymin=Math.min(...ys), ymax=Math.max(...ys);
+  if(!Number.isFinite(xmin)||!Number.isFinite(xmax)){xmin=0;xmax=.25;}
+  if(!Number.isFinite(ymin)||!Number.isFinite(ymax)){ymin=0;ymax=.15;}
+  const xspan=Math.max(xmax-xmin,.02), yspan=Math.max(ymax-ymin,.02);
+  const xpad=Math.max(xspan*.07,.004), ypad=Math.max(yspan*.12,.004);
+  const axisXMin=Math.max(0,xmin-xpad), axisXMax=xmax+xpad;
+  const axisYMin=ymin-ypad, axisYMax=ymax+ypad;
+
+  // Clip the CML to the visible plot instead of forcing the chart down to RF.
+  let cml=[];
+  if(tangent&&Number.isFinite(tangent.vol)&&tangent.vol>0&&Number.isFinite(tangent.ret)){
+    const slope=(tangent.ret-rf)/tangent.vol;
+    if(Number.isFinite(slope)&&Math.abs(slope)>1e-12){
+      const xFromY=(axisYMin-rf)/slope;
+      const startX=Math.max(axisXMin,Math.min(axisXMax,xFromY));
+      const endX=axisXMax;
+      cml=[[startX,rf+slope*startX],[endX,rf+slope*endX]];
+    }
+  }
+
+  const hasExact=exact.length>1;
   const series=[
-    {name:'Feasible Set',type:'scatter',symbolSize:4,data:cloud,itemStyle:{opacity:.16},emphasis:{itemStyle:{opacity:.7}}},
-    {name:'Preview Frontier',type:'line',showSymbol:false,smooth:.12,data:ef,lineStyle:{width:2,type:'dashed'},z:4},
-    {name:'Minimum Volatility',type:'scatter',symbol:'diamond',symbolSize:16,data:[[o.minVol.vol,o.minVol.ret,o.minVol.sharpe]],z:12,label:{show:true,position:'left',formatter:'MIN VOL'}},
-    {name:'Preview Max Sharpe',type:'scatter',symbolSize:16,data:[[o.maxSharpe.vol,o.maxSharpe.ret,o.maxSharpe.sharpe]],z:12,label:{show:true,position:'top',formatter:'MAX SHARPE'}}
+    {name:'Feasible Set',type:'scatter',symbolSize:2.6,data:cloud,itemStyle:{opacity:.075},emphasis:{itemStyle:{opacity:.5}},z:1},
+    {name:'Preview Frontier',type:'line',showSymbol:false,smooth:.18,data:ef,lineStyle:{width:1.1,type:'dashed',opacity:hasExact?.28:.9},z:3}
   ];
-  if(exact.length)series.push({name:'PyPortfolioOpt Exact Frontier',type:'line',showSymbol:false,smooth:.08,lineStyle:{width:4},data:exact,z:8});
-  if(cml.length)series.push({name:'Capital Market Line',type:'line',showSymbol:false,data:cml,lineStyle:{width:2,type:'dotted'},z:6});
-  if(eq)series.push({name:'Equal Weight',type:'scatter',symbol:'rect',symbolSize:13,data:[[eq.vol,eq.ret,eq.sharpe]],z:11,label:{show:true,position:'bottom',formatter:'EQUAL WT'}});
-  if(cur)series.push({name:'Current Portfolio',type:'scatter',symbol:'triangle',symbolSize:16,data:[[cur.vol,cur.ret,cur.sharpe]],z:13,label:{show:true,position:'right',formatter:'CURRENT'}});
-  if(exactPoint)series.push({name:`Exact ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,type:'scatter',symbol:'pin',symbolSize:22,data:[[exactPoint.vol,exactPoint.ret,exactPoint.sharpe]],z:14,label:{show:true,position:'top',formatter:'EXACT'}});
+  if(hasExact) series.push({name:'PyPortfolioOpt Exact Frontier',type:'line',showSymbol:false,smooth:.22,lineStyle:{width:3.6,opacity:1},data:exact,z:9});
+
+  const addPoint=(name,p,symbol,size,label,pos='top',z=12)=>{
+    if(!p)return;
+    series.push({
+      name,type:'scatter',symbol,symbolSize:size,data:[[p.vol,p.ret,p.sharpe]],z,
+      label:{show:true,position:pos,distance:10,formatter:label,fontWeight:700,fontSize:11,
+        backgroundColor:'rgba(9,15,23,.76)',borderRadius:4,padding:[3,5]}
+    });
+  };
+  addPoint('Minimum Volatility',minVolExact||o.minVol,'diamond',15,'MIN VOL','left',13);
+  addPoint('Maximum Sharpe / Tangency',maxSharpeExact||o.maxSharpe,'circle',17,'TANGENCY','top',14);
+  if(eq)addPoint('Equal Weight',eq,'rect',12,'EQUAL WT','bottom',11);
+  if(cur)addPoint('Current Portfolio',cur,'triangle',16,'CURRENT','right',15);
+  if(rpExact)addPoint('Risk Parity',rpExact,'roundRect',14,'RISK PARITY','bottom',13);
+  if(blExact)addPoint('Black–Litterman',blExact,'pin',18,'BLACK–LITTERMAN','right',13);
+  if(exactPoint && !['max_sharpe','min_volatility','risk_parity','black_litterman'].includes(ex?.method))
+    addPoint(`Selected ${String(ex.method||'Optimizer').replaceAll('_',' ')}`,exactPoint,'pin',18,'SELECTED','top',14);
+  if(cml.length)series.push({name:'Capital Market Line',type:'line',showSymbol:false,data:cml,lineStyle:{width:1.7,type:'dotted',opacity:.8},z:6});
+
   c.setOption({
     animation:false,
-    tooltip:{trigger:'item',backgroundColor:'rgba(10,16,24,.96)',borderWidth:1,formatter:p=>`<b>${p.seriesName}</b><br>Volatility ${(p.value[0]*100).toFixed(2)}%<br>Expected Return ${(p.value[1]*100).toFixed(2)}%${Number.isFinite(p.value[2])?`<br>Sharpe ${Number(p.value[2]).toFixed(2)}`:''}`},
-    legend:{top:0,left:'center',type:'scroll',textStyle:{color:muted}},
-    grid:{left:80,right:34,top:72,bottom:68},
-    xAxis:{type:'value',name:'ANNUALIZED VOLATILITY',nameLocation:'middle',nameGap:44,min:Math.max(0,xmin-xpad),max:xmax+xpad,axisLabel:{color:muted,formatter:v=>`${(v*100).toFixed(1)}%`},axisLine:{show:true,lineStyle:{color:grid}},splitLine:{lineStyle:{color:grid,type:'dashed'}}},
-    yAxis:{type:'value',name:'EXPECTED RETURN',nameLocation:'middle',nameGap:58,min:ymin-ypad,max:ymax+ypad,axisLabel:{color:muted,formatter:v=>`${(v*100).toFixed(1)}%`},axisLine:{show:true,lineStyle:{color:grid}},splitLine:{lineStyle:{color:grid,type:'dashed'}}},
+    tooltip:{trigger:'item',confine:true,backgroundColor:'rgba(8,14,22,.97)',borderWidth:1,
+      formatter:p=>`<b>${p.seriesName}</b><br>Volatility ${(p.value[0]*100).toFixed(2)}%<br>Expected Return ${(p.value[1]*100).toFixed(2)}%${Number.isFinite(p.value[2])?`<br>Sharpe ${Number(p.value[2]).toFixed(2)}`:''}`},
+    legend:{top:0,left:'center',type:'scroll',itemGap:14,itemWidth:18,itemHeight:8,textStyle:{color:muted,fontSize:11}},
+    grid:{left:78,right:30,top:68,bottom:64},
+    xAxis:{type:'value',name:'ANNUALIZED VOLATILITY',nameLocation:'middle',nameGap:44,min:axisXMin,max:axisXMax,splitNumber:5,
+      axisLabel:{color:muted,formatter:v=>`${(v*100).toFixed(1)}%`},axisLine:{show:true,lineStyle:{color:grid}},splitLine:{lineStyle:{color:grid,type:'dashed',opacity:.7}}},
+    yAxis:{type:'value',name:'EXPECTED RETURN',nameLocation:'middle',nameGap:56,min:axisYMin,max:axisYMax,splitNumber:5,
+      axisLabel:{color:muted,formatter:v=>`${(v*100).toFixed(1)}%`},axisLine:{show:true,lineStyle:{color:grid}},splitLine:{lineStyle:{color:grid,type:'dashed',opacity:.7}}},
     series
   },true);
   requestAnimationFrame(()=>c.resize());

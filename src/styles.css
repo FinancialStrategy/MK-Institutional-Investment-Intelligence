@@ -119,3 +119,21 @@
 /* v0.10.5 institutional efficient-frontier layout */
 .frontier-chart{height:520px!important;min-height:520px}
 @media(max-width:900px){.frontier-chart{height:430px!important;min-height:430px}}
+
+/* v0.10.7 institutional frontier presentation */
+.optimization-grid{grid-template-columns:minmax(0,2.65fr) minmax(300px,1fr);margin-top:12px;align-items:start}
+.frontier-panel{padding:16px 16px 10px}
+.frontier-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:2px}
+.frontier-head h3{margin-bottom:4px}
+.frontier-head .sub{margin:0;max-width:760px}
+.engine-badge{flex:0 0 auto;border:1px solid var(--border);border-radius:999px;padding:5px 8px;font-size:9px;letter-spacing:.12em;font-weight:700}
+.engine-badge.live{color:var(--good);background:color-mix(in srgb,var(--good) 10%,transparent)}
+.engine-badge.preview{color:var(--muted);background:var(--panel2)}
+.solution-panel{max-height:640px;overflow:auto}
+.solution-panel h4{margin:16px 0 5px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;letter-spacing:.02em}
+.solution-panel h4:first-of-type{margin-top:8px;padding-top:0;border-top:0}
+.solution-panel table{font-size:11px}
+.solution-panel th,.solution-panel td{padding:8px 6px}
+.frontier-chart{height:500px!important;min-height:500px}
+@media(max-width:1100px){.optimization-grid{grid-template-columns:1fr}.solution-panel{max-height:none}}
+@media(max-width:900px){.frontier-chart{height:420px!important;min-height:420px}}

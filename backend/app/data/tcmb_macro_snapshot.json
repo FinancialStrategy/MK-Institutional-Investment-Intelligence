@@ -1,0 +1,49 @@
+{
+  "survey_period": "2026-09",
+  "survey_date": "2026-09-11",
+  "source": "TCMB Piyasa Katilimcilari Anketi - Eylul 2026",
+  "source_url": "https://www.tcmb.gov.tr/wps/wcm/connect/TR/TCMB%2BTR/Main%2BMenu/Istatistikler/Egilim%2BAnketleri/Piyasa%2BKatilimcilari%2BAnketi",
+  "inflation_12m": 0.237,
+  "inflation_24m": 0.1832,
+  "policy_rate_anchors": [
+    {
+      "label": "OCT26",
+      "target_date": "2026-10-22",
+      "description": "Second MPC meeting policy-rate expectation reported in the September 2026 TCMB Market Participants Survey; mapped to the next scheduled MPC meeting after the valuation date.",
+      "policy_rate": 0.36,
+      "rate": 0.36
+    },
+    {
+      "label": "DEC26",
+      "target_date": "2026-12-10",
+      "description": "Third MPC meeting / 2026 year-end policy-rate expectation reported in the September 2026 TCMB Market Participants Survey.",
+      "policy_rate": 0.3507,
+      "rate": 0.3507
+    },
+    {
+      "label": "12M",
+      "target_date": "2027-09-11",
+      "description": "12-month-ahead policy-rate expectation reported in the September 2026 TCMB Market Participants Survey.",
+      "policy_rate": 0.2922,
+      "rate": 0.2922
+    },
+    {
+      "label": "DEC27",
+      "target_date": "2027-12-31",
+      "description": "2027 year-end policy-rate expectation reported in public summaries of the September 2026 TCMB Market Participants Survey.",
+      "policy_rate": 0.2716,
+      "rate": 0.2716
+    },
+    {
+      "label": "24M",
+      "target_date": "2028-09-11",
+      "description": "24-month-ahead policy-rate expectation reported in public summaries of the September 2026 TCMB Market Participants Survey.",
+      "policy_rate": 0.2243,
+      "rate": 0.2243
+    }
+  ],
+  "current_policy_rate": 0.37,
+  "current_policy_rate_as_of": "2026-09-10",
+  "current_policy_rate_source": "TCMB PPK decision 2026-38",
+  "current_policy_rate_source_url": "https://www.tcmb.gov.tr/wps/wcm/connect/TR/TCMB%2BTR/Main%2BMenu/Duyurular/Basin/2026/DUY2026-38"
+}

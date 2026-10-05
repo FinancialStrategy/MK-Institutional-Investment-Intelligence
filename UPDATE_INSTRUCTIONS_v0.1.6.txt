@@ -1,0 +1,48 @@
+INTEREST LOAN COST SIMULATOR INTELLIGENCE - v0.1.6 UPDATE
+
+Copy the files/folders in this package into the ROOT of your existing
+interest-loan-cost-simulator repository and choose Replace/Overwrite.
+
+FILES TO REPLACE / ADD
+----------------------
+VERSION
+README.md
+backend/requirements.txt
+backend/app/data/TLREFORANI_D_official.csv
+backend/app/data/tcmb_macro_snapshot.json
+backend/app/market_data.py
+backend/app/models.py
+backend/app/curves.py
+backend/app/engine.py
+backend/app/main.py
+backend/app/exporter.py
+backend/tests/test_engine.py
+backend/tests/test_market_data.py
+backend/tests/test_exporter.py
+site/app.js
+site/styles.css
+
+DO NOT REPLACE site/config.js. Keep the existing production Render API URL.
+
+DEPLOY
+------
+1. Open GitHub Desktop.
+2. Confirm the files above appear under Changes.
+3. Commit message:
+   v0.1.6 - historical TLREF TCMB inflation and survey anchored NS Svensson curve
+4. Commit to main.
+5. Push origin.
+6. Wait for Render backend and Netlify frontend to redeploy.
+7. Check:
+   https://interest-loan-cost-simulator.onrender.com/health
+   https://interest-loan-cost-simulator.onrender.com/market/tlref
+   https://interest-loan-cost-simulator.onrender.com/market/macro
+8. Hard-refresh the Netlify site with Ctrl+F5.
+
+CURVE DATA HIERARCHY
+--------------------
+Observed VIOP/swap/user-market node
+> TCMB PKA TLREF-equivalent survey proxy
+> NS/Svensson interpolation inside the supported anchor horizon only.
+
+No default extrapolation beyond the last supported anchor.
